@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Media Monitoring Agent</title>
+    <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+    <header>
+        <h1>Media Monitoring Agent</h1>
+        <p>Collaborative media article collection and processing system</p>
+    </header>
+
+    <main>
+        <!-- Team Member Article Submission Section -->
+        <section id="submission-section" class="card">
+            <h2>Submit Article</h2>
+            <p>Team members can submit article URLs for processing</p>
+            
+            <form id="article-form" novalidate>
+                <div class="form-group">
+                    <label for="submitted-by">Your Name</label>
+                    <input 
+                        type="text" 
+                        id="submitted-by" 
+                        name="submitted_by" 
+                        required 
+                        aria-describedby="name-help"
+                        autocomplete="name"
+                    >
+                    <small id="name-help" class="help-text">Enter your full name</small>
+                </div>
+
+                <div class="form-group">
+                    <label for="article-url">Article URL</label>
+                    <input 
+                        type="url" 
+                        id="article-url" 
+                        name="url" 
+                        required 
+                        aria-describedby="url-help"
+                        placeholder="https://example.com/article"
+                    >
+                    <small id="url-help" class="help-text">Enter the full URL of the article</small>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    <span class="btn-text">Submit Article</span>
+                    <span class="btn-loading" hidden>Submitting...</span>
+                </button>
+            </form>
+
+            <div id="submission-feedback" class="feedback" role="alert" aria-live="polite"></div>
+        </section>
+
+        <!-- Core Team Dashboard Section -->
+        <section id="dashboard-section" class="card">
+            <h2>Processing Dashboard</h2>
+            <p>Core team processing interface for pending articles and report generation</p>
+
+            <!-- Pending Articles Table -->
+            <div class="dashboard-subsection">
+                <h3>Pending Articles</h3>
+                <div class="table-container">
+                    <table id="pending-articles-table" class="data-table">
+                        <thead>
+                            <tr>
+                                <th scope="col">URL</th>
+                                <th scope="col">Submitted By</th>
+                                <th scope="col">Timestamp</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pending-articles-body">
+                            <tr class="empty-state">
+                                <td colspan="3">No pending articles</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                <button id="refresh-articles" class="btn btn-secondary" type="button">
+                    Refresh Articles
+                </button>
+            </div>
+
+            <!-- Paywalled Content Input -->
+            <div class="dashboard-subsection">
+                <h3>Paywalled Article Content</h3>
+                <div class="form-group">
+                    <label for="pasted-content">Paste article content that cannot be automatically scraped</label>
+                    <textarea 
+                        id="pasted-content" 
+                        name="pasted_content"
+                        rows="10"
+                        maxlength="100000"
+                        aria-describedby="content-help char-count"
+                        placeholder="Paste paywalled article content here..."
+                    ></textarea>
+                    <div class="textarea-footer">
+                        <small id="content-help" class="help-text">
+                            Paste content from paywalled articles that cannot be automatically scraped
+                        </small>
+                        <small id="char-count" class="char-count">0 / 100,000 characters</small>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Report Generation Controls -->
+            <div class="dashboard-subsection">
+                <h3>Report Generation</h3>
+                
+                <div class="form-group">
+                    <label for="recipient-email">Recipient Email Address</label>
+                    <input 
+                        type="email" 
+                        id="recipient-email" 
+                        name="recipient_email" 
+                        required 
+                        aria-describedby="email-help"
+                        placeholder="user@example.com"
+                    >
+                    <small id="email-help" class="help-text">Enter the email address where the report should be sent</small>
+                </div>
+                
+                <div class="report-controls">
+                    <button id="generate-media-report" class="btn btn-primary" type="button">
+                        <span class="btn-text">Generate Media Report</span>
+                        <span class="btn-loading" hidden>Generating...</span>
+                    </button>
+                    
+                    <button id="generate-hansard-report" class="btn btn-primary" type="button">
+                        <span class="btn-text">Generate Hansard Report</span>
+                        <span class="btn-loading" hidden>Generating...</span>
+                    </button>
+                </div>
+                
+                <div id="report-feedback" class="feedback" role="alert" aria-live="polite"></div>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>&copy; 2024 Media Monitoring Agent. Built for collaborative media analysis.</p>
+    </footer>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>

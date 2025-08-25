@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug Frontend - Media Monitoring Agent</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin-top: 20px; padding: 10px; border: 1px solid #ccc; }
+        .success { background-color: #d4edda; border-color: #c3e6cb; color: #155724; }
+        .error { background-color: #f8d7da; border-color: #f5c6cb; color: #721c24; }
+        input, button { margin: 5px; padding: 8px; }
+        pre { background: #f8f9fa; padding: 10px; overflow-x: auto; }
+    </style>
+</head>
+<body>
+    <h1>🔧 Debug Frontend Test</h1>
+    <p>This page will help diagnose the network error issue.</p>
+    
+    <form id="test-form">
+        <div>
+            <label for="url">Article URL:</label><br>
+            <input type="url" id="url" name="url" value="https://example.com/test-article" required style="width: 400px;">
+        </div>
+        <div>
+            <label for="name">Your Name:</label><br>
+            <input type="text" id="name" name="name" value="Test User" required style="width: 200px;">
+        </div>
+        <button type="submit">🚀 Submit Article</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        document.getElementById('test-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = '<div class="result">⏳ Testing API submission...</div>';
+            
+            try {
+                const formData = new FormData(e.target);
+                const data = {
+                    url: formData.get('url'),
+                    submitted_by: formData.get('name')
+                };
+                
+                console.log('🔍 Submitting data:', data);
+                
+                const response = await fetch('/api/articles/submit-real', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data)
+                });
+                
+                console.log('📡 Response status:', response.status);
+                console.log('📋 Response headers:', [...response.headers.entries()]);
+                
+                const responseText = await response.text();
+                console.log('📄 Response text:', responseText);
+                
+                let resultHTML = '';
+                
+                if (response.ok) {
+                    try {
+                        const responseData = JSON.parse(responseText);
+                        resultHTML = `
+                            <div class="result success">
+                                <h3>✅ Success!</h3>
+                                <p><strong>Status:</strong> ${response.status}</p>
+                                <p><strong>Response:</strong></p>
+                                <pre>${JSON.stringify(responseData, null, 2)}</pre>
+                            </div>
+                        `;
+                    } catch (e) {
+                        resultHTML = `
+                            <div class="result success">
+                                <h3>✅ Success (but invalid JSON)</h3>
+                                <p><strong>Status:</strong> ${response.status}</p>
+                                <p><strong>Response:</strong> ${responseText}</p>
+                            </div>
+                        `;
+                    }
+                } else {
+                    resultHTML = `
+                        <div class="result error">
+                            <h3>❌ HTTP Error</h3>
+                            <p><strong>Status:</strong> ${response.status} ${response.statusText}</p>
+                            <p><strong>Response:</strong></p>
+                            <pre>${responseText}</pre>
+                            <p><strong>Headers:</strong></p>
+                            <pre>${JSON.stringify([...response.headers.entries()], null, 2)}</pre>
+                        </div>
+                    `;
+                }
+                
+                resultDiv.innerHTML = resultHTML;
+                
+            } catch (error) {
+                console.error('💥 Fetch error:', error);
+                resultDiv.innerHTML = `
+                    <div class="result error">
+                        <h3>💥 Network/JavaScript Error</h3>
+                        <p><strong>Error Type:</strong> ${error.name}</p>
+                        <p><strong>Error Message:</strong> ${error.message}</p>
+                        <p><strong>Stack:</strong></p>
+                        <pre>${error.stack}</pre>
+                        <p><strong>Possible Causes:</strong></p>
+                        <ul>
+                            <li>Server is not running</li>
+                            <li>CORS configuration issue</li>
+                            <li>Network connectivity problem</li>
+                            <li>Browser blocking the request</li>
+                        </ul>
+                    </div>
+                `;
+            }
+        });
+        
+        // Test basic connectivity
+        window.addEventListener('load', async () => {
+            try {
+                const response = await fetch('/api/articles/pending');
+                console.log('🔗 Basic connectivity test:', response.status);
+                if (response.ok) {
+                    document.body.insertAdjacentHTML('afterbegin', 
+                        '<div style="background: #d4edda; padding: 10px; margin-bottom: 20px; border-radius: 5px;">✅ Basic API connectivity is working</div>'
+                    );
+                }
+            } catch (e) {
+                document.body.insertAdjacentHTML('afterbegin', 
+                    '<div style="background: #f8d7da; padding: 10px; margin-bottom: 20px; border-radius: 5px;">❌ Basic API connectivity failed: ' + e.message + '</div>'
+                );
+            }
+        });
+    </script>
+</body>
+</html>

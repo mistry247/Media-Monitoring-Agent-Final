@@ -1,0 +1,10 @@
+COPY THIS CONTENT TO YOUR SERVER VIA DIGITALOCEAN CONSOLE:
+
+1. Go to DigitalOcean Dashboard → Your Droplet → Console
+2. Run these commands one by one:
+
+cd /opt/media-monitoring-agent
+cp static/app.js static/app.js.backup
+
+# Create the fixed file
+cat > static/app.js.new << 'EOF'

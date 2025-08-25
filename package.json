@@ -1,0 +1,18 @@
+{
+  "name": "media-monitoring-agent",
+  "version": "1.0.0",
+  "description": "Media monitoring and reporting system",
+  "scripts": {
+    "test:js": "jest tests/test_frontend.js",
+    "test:js:watch": "jest tests/test_frontend.js --watch"
+  },
+  "devDependencies": {
+    "jest": "^29.0.0"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "collectCoverage": true,
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"]
+  }
+}

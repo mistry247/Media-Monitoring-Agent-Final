@@ -1,0 +1,34 @@
+# Production requirements for Media Monitoring Agent
+# This file includes only production dependencies without development/testing packages
+
+# Core FastAPI and server dependencies
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+pydantic==2.4.2
+pydantic-core==2.10.1
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+
+# HTTP and web scraping
+requests==2.31.0
+beautifulsoup4==4.12.2
+newspaper3k==0.2.8
+aiohttp==3.9.1
+
+# Configuration and environment
+python-dotenv==1.0.0
+
+# File handling and templates
+aiofiles==23.2.1
+jinja2==3.1.2
+
+# System monitoring
+psutil==5.9.6
+
+# Production-specific dependencies
+gunicorn==21.2.0
+
+# Google Generative AI
+google-generativeai>=0.8.3

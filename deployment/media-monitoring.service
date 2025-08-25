@@ -1,0 +1,32 @@
+[Unit]
+Description=Media Monitoring Agent
+After=network.target
+Wants=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/media-monitoring-agent
+Environment=PATH=/opt/media-monitoring-agent/venv/bin
+ExecStart=/opt/media-monitoring-agent/venv/bin/python main.py
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=media-monitoring
+
+# Security settings
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/media-monitoring-agent/data
+ReadWritePaths=/opt/media-monitoring-agent/logs
+
+# Environment file
+EnvironmentFile=/opt/media-monitoring-agent/.env
+
+[Install]
+WantedBy=multi-user.target
