@@ -88,6 +88,52 @@ async def submit_article(
             "error_type": type(e).__name__
         }
 
+@router.get("/pending")
+async def get_pending_articles(
+    db: Session = Depends(get_db)
+):
+    """
+    Get all pending articles from the database
+    
+    Args:
+        db: Database session dependency
+        
+    Returns:
+        JSON response with list of pending articles
+    """
+    try:
+        from database import PendingArticle
+        
+        # Query all pending articles
+        pending_articles = db.query(PendingArticle).order_by(PendingArticle.timestamp.desc()).all()
+        
+        # Convert to list of dictionaries
+        articles_list = []
+        for article in pending_articles:
+            articles_list.append({
+                "id": article.id,
+                "url": article.url,
+                "submitted_by": article.submitted_by,
+                "timestamp": article.timestamp.isoformat()
+            })
+        
+        logger.info(f"Retrieved {len(articles_list)} pending articles")
+        
+        return {
+            "success": True,
+            "articles": articles_list,
+            "count": len(articles_list)
+        }
+        
+    except Exception as e:
+        logger.error(f"Error retrieving pending articles: {e}")
+        return {
+            "success": False,
+            "error": str(e),
+            "articles": [],
+            "count": 0
+        }
+
 @router.post("/process/{article_id}")
 async def process_article(
     article_id: int,
