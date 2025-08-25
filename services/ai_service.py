@@ -106,7 +106,7 @@ class GeminiAPIClient:
             logger.error(f"Gemini API request failed: {e}")
             raise
     
-    def summarize(self, content: str, summary_type: str = "media") -> SummaryResult:
+    def summarize(self, content: str, summary_type: str = "media", article_url: str = "") -> SummaryResult:
         """
         Summarize content using Gemini API
         
@@ -136,7 +136,7 @@ class GeminiAPIClient:
         try:
             # Create appropriate prompt based on summary type
             if summary_type == "media":
-                prompt = self._create_media_summary_prompt(content)
+                prompt = self._create_media_summary_prompt(content, article_url)
             elif summary_type == "hansard":
                 prompt = self._create_hansard_summary_prompt(content)
             else:
@@ -175,16 +175,44 @@ class GeminiAPIClient:
             logger.error(f"Gemini API error: {error_msg}")
             return SummaryResult(success=False, error=error_msg)
     
-    def _create_media_summary_prompt(self, content: str) -> str:
+    def _create_media_summary_prompt(self, content: str, article_url: str = "") -> str:
         """Create a prompt for media article summarization"""
-        return f"""Please analyze and summarize the following media content for a political monitoring report. 
-Focus on key political developments, policy implications, and newsworthy events. 
-Provide a concise but comprehensive summary that captures the main points and their significance.
+        return f"""ROLE
+You are a highly skilled Senior Media Analyst and Editor, specializing in producing concise, formal, and neutral summaries of news articles for executive briefings. Your writing must be objective, information-dense, and adhere to a strict, professional format.
 
-Content to summarize:
-{content}
+INPUTS YOU WILL RECEIVE
+Article URL: The full URL of the original news story.
+Article Text: The cleaned text content of that news story.
 
-Please provide your summary in a clear, professional format suitable for a media monitoring report."""
+TASK & FORMATTING RULES
+Your goal is to produce a single, perfectly formatted paragraph that summarizes the provided article. You must follow these steps precisely:
+
+Analyze the Article URL to infer the common name of the news organization (e.g., from www.theguardian.com you should infer The Guardian). If the URL is 'Pasted Article', infer the source from the text content or state 'A provided text'.
+
+Write a Summary:
+Your summary must be a concise and neutral distillation of the key points from the Article Text.
+Content Focus: Prioritize the "Five Ws" (Who, What, When, Where, Why). Identify the main subjects (people, organizations), the core event or issue, and the key outcomes or implications.
+Include Key Details: If the article contains important data, statistics, or financial figures, include them in your summary to provide context and weight.
+Tone and Style: Maintain a consistently formal, objective, and impartial tone. Avoid any informal language, slang, or personal opinions. Use sophisticated, professional vocabulary appropriate for a corporate or political audience.
+
+Construct Your Response:
+The entire response must be a single paragraph wrapped in <p>...</p> tags.
+The response MUST begin with a hyperlink to the news organization. The link text should be the source's common name.
+The hyperlink must be immediately followed by the word "reports" (e.g., The Guardian reports...).
+The rest of the paragraph is your summary.
+The required format is exactly: <a href="[Article URL]">[Source Name]</a> reports [your summary text here].
+
+OUTPUT EXAMPLES (Your summary must be formatted and written exactly like these examples)
+
+YOUR ASSIGNMENT
+Now, process the following inputs based on all the rules and examples above. Respond with only the single, complete <p>...</p> HTML block.
+
+Article URL: {article_url}
+Article Text: {content}
+
+SPECIAL RULE: If the article URL is from any BBC domain (bbc.com, bbc.co.uk, or their subdomains), always use 'BBC News' as the source name in the hyperlink, regardless of what the URL or article text says.
+
+IMPORTANT: In your output, always use the actual Article URL provided in the input for the hyperlink. Never use a placeholder, example, or the literal text '[Article URL]'."""
     
     def _create_hansard_summary_prompt(self, content: str) -> str:
         """Create a prompt for Hansard-style parliamentary questions"""
@@ -219,7 +247,7 @@ class AIService:
             Tuple of (success: bool, summary_dict: dict, error: str)
         """
         full_content = f"Title: {title}\n\nContent: {content}"
-        result = self.summarize_content(full_content, "media")
+        result = self.summarize_content(full_content, "media", url)
         
         if result.success:
             summary_dict = {
@@ -236,7 +264,7 @@ class AIService:
         else:
             return False, {}, result.error
     
-    def summarize_content(self, content: str, summary_type: str = "media") -> SummaryResult:
+    def summarize_content(self, content: str, summary_type: str = "media", article_url: str = "") -> SummaryResult:
         """
         Summarize a single piece of content
         
@@ -271,7 +299,7 @@ class AIService:
             content = content[:max_chars] + "\n\n[Content truncated due to length]"
         
         logger.info(f"Summarizing content of {len(content)} characters")
-        result = self.client.summarize(content, summary_type)
+        result = self.client.summarize(content, summary_type, article_url)
         
         if result.success:
             logger.info(f"Content summarized successfully, tokens used: {result.tokens_used}")
