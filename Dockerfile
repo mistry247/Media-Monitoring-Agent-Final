@@ -1,6 +1,12 @@
+# Use Python 3.11 slim image as base
 FROM python:3.11-slim
 
-# Set working directory
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DEBIAN_FRONTEND=noninteractive
+
+# Set work directory
 WORKDIR /app
 
 # Install system dependencies
@@ -19,12 +25,18 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create necessary directories
-RUN mkdir -p logs data
+# Create directories for data and logs
+RUN mkdir -p /app/data /app/logs
 
 # Create non-root user
-RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
-USER appuser
+RUN useradd --create-home --shell /bin/bash app && \
+    chown -R app:app /app
+
+# Switch to non-root user
+USER app
+
+# Initialize database
+RUN python init_db.py
 
 # Expose port
 EXPOSE 8000

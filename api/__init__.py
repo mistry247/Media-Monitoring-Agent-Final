@@ -1,1 +1,3 @@
-# API package for REST endpoints and routing
+"""
+API package for Media Monitoring Agent
+"""

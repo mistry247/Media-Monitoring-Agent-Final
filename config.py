@@ -20,6 +20,7 @@ class Settings:
     
     def __init__(self):
         """Initialize settings with validation"""
+        self._manual_sites = self._load_manual_sites()
         self._validate_configuration()
     
     # Database Configuration
@@ -202,25 +203,66 @@ class Settings:
     def N8N_WEBHOOK_URL(self) -> str:
         return os.getenv("N8N_WEBHOOK_URL", "https://mistry247.app.n8n.cloud/webhook/ee237986-ca83-4bfa-bfc4-74a297f49450")
     
+    def _load_manual_sites(self) -> set:
+        """Load manual processing sites from manual_sites.txt file"""
+        manual_sites = set()
+        manual_sites_file = "manual_sites.txt"
+        
+        try:
+            if os.path.exists(manual_sites_file):
+                with open(manual_sites_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        # Skip empty lines and comments
+                        if line and not line.startswith('#'):
+                            # Normalize domain (remove www. prefix if present)
+                            domain = line.lower()
+                            if domain.startswith('www.'):
+                                domain = domain[4:]
+                            manual_sites.add(domain)
+                
+                logger.info(f"Loaded {len(manual_sites)} manual processing sites from {manual_sites_file}")
+            else:
+                logger.info(f"Manual sites file {manual_sites_file} not found - no sites will be automatically routed to manual processing")
+        
+        except Exception as e:
+            logger.error(f"Error loading manual sites from {manual_sites_file}: {e}")
+        
+        return manual_sites
+    
+    @property
+    def MANUAL_SITES(self) -> set:
+        """Get the set of domains that require manual processing"""
+        return self._manual_sites
+    
+    def is_manual_site(self, url: str) -> bool:
+        """Check if a URL's domain is in the manual processing sites list"""
+        try:
+            from urllib.parse import urlparse
+            parsed_url = urlparse(url)
+            domain = parsed_url.netloc.lower()
+            
+            # Remove www. prefix if present
+            if domain.startswith('www.'):
+                domain = domain[4:]
+            
+            return domain in self._manual_sites
+        except Exception as e:
+            logger.error(f"Error checking if URL is manual site: {e}")
+            return False
+    
     def _validate_configuration(self):
         errors = []
-        email_provider = self.EMAIL_PROVIDER.lower() if self.EMAIL_PROVIDER else 'smtp'
-        
-        if email_provider == 'sendgrid':
-            if not self.SENDGRID_API_KEY:
-                errors.append('SENDGRID_API_KEY is required when EMAIL_PROVIDER is set to sendgrid')
-        elif email_provider == 'smtp':
-            if not self.SMTP_USERNAME:
-                errors.append('SMTP_USERNAME is required when EMAIL_PROVIDER is set to smtp')
-            if not self.SMTP_PASSWORD:
-                errors.append('SMTP_PASSWORD is required when EMAIL_PROVIDER is set to smtp')
-            # Only validate SMTP port when using SMTP
-            if not (1 <= self.SMTP_PORT <= 65535):
-                errors.append(f"SMTP_PORT must be between 1 and 65535, got {self.SMTP_PORT}")
         
         # Check database URL format
         if not self.DATABASE_URL:
             errors.append("DATABASE_URL cannot be empty")
+        
+        # Validate N8N webhook URL for email functionality
+        if not self.N8N_WEBHOOK_URL:
+            errors.append("N8N_WEBHOOK_URL is required for email functionality")
+        elif not self.N8N_WEBHOOK_URL.startswith(('http://', 'https://')):
+            errors.append("N8N_WEBHOOK_URL must be a valid HTTP/HTTPS URL")
         
         # Validate Gemini API configuration if key is set
         if self.GEMINI_API_KEY:

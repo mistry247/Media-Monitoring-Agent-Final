@@ -60,30 +60,49 @@ class ReportService:
             scraped_content = []
             failed_scrapes = []
             article_ids_to_archive = []
+            article_ids_to_move_to_manual = []
             
             for article in pending_articles:
                 logger.info(f"Scraping article: {article.url}")
-                scrape_result = scraping_service.scrape_article(article.url)
                 
-                if scrape_result['success']:
-                    scraped_content.append({
-                        'id': article.id,
-                        'url': article.url,
-                        'title': scrape_result['title'],
-                        'content': scrape_result['text'],
-                        'submitted_by': article.submitted_by,
-                        'timestamp': article.timestamp
-                    })
-                    article_ids_to_archive.append(article.id)
-                else:
+                try:
+                    scrape_result = scraping_service.scrape_article(article.url)
+                    
+                    if scrape_result['success']:
+                        scraped_content.append({
+                            'id': article.id,
+                            'url': article.url,
+                            'title': scrape_result['title'],
+                            'content': scrape_result['text'],
+                            'submitted_by': article.submitted_by,
+                            'timestamp': article.timestamp
+                        })
+                        article_ids_to_archive.append(article.id)
+                    else:
+                        # Scraping failed - move to manual processing
+                        failed_scrapes.append({
+                            'url': article.url,
+                            'error': scrape_result['error'],
+                            'submitted_by': article.submitted_by
+                        })
+                        article_ids_to_move_to_manual.append(article.id)
+                        logger.warning(f"Failed to scrape {article.url}: {scrape_result['error']} - moving to manual processing")
+                
+                except Exception as e:
+                    # Exception during scraping - move to manual processing
                     failed_scrapes.append({
                         'url': article.url,
-                        'error': scrape_result['error'],
+                        'error': f"Scraping exception: {str(e)}",
                         'submitted_by': article.submitted_by
                     })
-                    logger.warning(f"Failed to scrape {article.url}: {scrape_result['error']}")
+                    article_ids_to_move_to_manual.append(article.id)
+                    logger.error(f"Exception while scraping {article.url}: {e} - moving to manual processing")
             
-            logger.info(f"Successfully scraped {len(scraped_content)} articles, {len(failed_scrapes)} failed")
+            # Move failed articles to manual processing table
+            if article_ids_to_move_to_manual:
+                self._move_articles_to_manual_processing(article_ids_to_move_to_manual)
+            
+            logger.info(f"Successfully scraped {len(scraped_content)} articles, {len(failed_scrapes)} moved to manual processing")
             
             # Step 3: Prepare content for AI processing
             content_for_ai = []
@@ -322,6 +341,52 @@ class ReportService:
         except Exception as e:
             logger.error(f"Error retrieving Hansard questions: {str(e)}")
             return []
+    
+    def _move_articles_to_manual_processing(self, article_ids: List[int]) -> None:
+        """
+        Move articles from pending_articles to manual_input_articles table
+        
+        Args:
+            article_ids: List of article IDs to move to manual processing
+        """
+        try:
+            from database import PendingArticle, ManualInputArticle
+            from datetime import datetime
+            
+            moved_count = 0
+            
+            for article_id in article_ids:
+                # Get the pending article
+                pending_article = self.db.query(PendingArticle).filter(
+                    PendingArticle.id == article_id
+                ).first()
+                
+                if not pending_article:
+                    logger.warning(f"Article {article_id} not found in pending_articles")
+                    continue
+                
+                # Create manual input entry
+                manual_article = ManualInputArticle(
+                    url=pending_article.url,
+                    submitted_by=pending_article.submitted_by,
+                    submitted_at=datetime.utcnow(),
+                    article_content=None  # Initially empty, will be filled manually
+                )
+                
+                # Add to manual input table and remove from pending
+                self.db.add(manual_article)
+                self.db.delete(pending_article)
+                moved_count += 1
+                
+                logger.info(f"Moved article {article_id} ({pending_article.url}) to manual processing")
+            
+            self.db.commit()
+            logger.info(f"Successfully moved {moved_count} articles to manual processing")
+            
+        except Exception as e:
+            self.db.rollback()
+            logger.error(f"Error moving articles to manual processing: {e}")
+            raise
 
 def get_report_service(db: Session = None) -> ReportService:
     """

@@ -63,12 +63,8 @@ Edit your `.env` file with these essential settings:
 # Google Gemini API (Get from Google AI Studio)
 CLAUDE_API_KEY=your_gemini_api_key_here
 
-# Email Configuration (Gmail example)
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your_email@gmail.com
-SMTP_PASSWORD=your_app_password  # Use App Password, not regular password
-EMAIL_FROM=your_email@gmail.com
+# Email Configuration (N8N Webhook - more reliable than SMTP)
+N8N_WEBHOOK_URL=https://mistry247.app.n8n.cloud/webhook/ee237986-ca83-4bfa-bfc4-74a297f49450
 EMAIL_RECIPIENTS=recipient1@company.com,recipient2@company.com
 
 # Domain (if using SSL)
@@ -82,11 +78,10 @@ CORS_ORIGINS=https://yourdomain.com
    - Create a new API key
    - Copy the key to your `.env` file
 
-2. **Gmail App Password:**
-   - Enable 2-factor authentication on your Gmail account
-   - Go to Google Account settings > Security > App passwords
-   - Generate an app password for "Mail"
-   - Use this password in your `.env` file
+2. **N8N Webhook (Email Delivery):**
+   - The webhook URL is pre-configured for reliable email delivery
+   - No additional setup required - emails will be sent via the n8n automation
+   - Much more reliable than traditional SMTP configurations
 
 ## 🌐 Cloud Provider Setup
 
@@ -252,9 +247,9 @@ docker-compose logs -f media-monitoring
    ```
 
 2. **Email not working:**
-   - Verify SMTP settings in `.env`
-   - Check Gmail app password is correct
-   - Ensure 2FA is enabled on Gmail
+   - Verify N8N_WEBHOOK_URL is set correctly in `.env`
+   - Check that EMAIL_RECIPIENTS contains valid email addresses
+   - Test the webhook URL manually if needed
 
 3. **API errors:**
    - Verify Gemini API key is valid

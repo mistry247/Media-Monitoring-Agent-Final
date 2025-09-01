@@ -1,9 +1,10 @@
 """
-Unit tests for email service
+Unit tests for email service (n8n webhook)
 """
 import pytest
 from unittest.mock import Mock, patch, MagicMock
 from datetime import datetime
+import requests
 from services.email_service import EmailService, email_service
 
 
@@ -28,117 +29,115 @@ class TestEmailService:
             }
         ]
     
-    @patch('services.email_service.smtplib.SMTP')
+    @patch('services.email_service.requests.post')
     @patch('services.email_service.settings')
-    def test_send_report_success(self, mock_settings, mock_smtp):
-        """Test successful email sending"""
+    def test_send_report_success(self, mock_settings, mock_post):
+        """Test successful email sending via webhook"""
         # Mock settings
-        mock_settings.SMTP_HOST = 'smtp.test.com'
-        mock_settings.SMTP_PORT = 587
-        mock_settings.SMTP_USERNAME = 'test@example.com'
-        mock_settings.SMTP_PASSWORD = 'password'
-        mock_settings.EMAIL_RECIPIENTS = ['recipient@example.com']
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
         
-        # Mock SMTP server
-        mock_server = MagicMock()
-        mock_smtp.return_value.__enter__.return_value = mock_server
+        # Mock successful webhook response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
         
         # Test
         html_content = "<html><body>Test Report</body></html>"
-        result = self.email_service.send_report(html_content)
+        result = self.email_service.send_report(html_content, recipients=['test@example.com'])
         
         # Assertions
         assert result is True
-        mock_smtp.assert_called_once_with('smtp.test.com', 587)
-        mock_server.starttls.assert_called_once()
-        mock_server.login.assert_called_once_with('test@example.com', 'password')
-        mock_server.send_message.assert_called_once()
+        mock_post.assert_called_once_with(
+            'https://test.webhook.url',
+            json={
+                'recipient': 'test@example.com',
+                'subject': pytest.approx('Media Report - ', abs=50),  # Allow for timestamp variation
+                'body': html_content
+            },
+            headers={'Content-Type': 'application/json'},
+            timeout=30
+        )
     
-    @patch('services.email_service.smtplib.SMTP')
+    @patch('services.email_service.requests.post')
     @patch('services.email_service.settings')
-    def test_send_report_with_custom_recipients(self, mock_settings, mock_smtp):
-        """Test email sending with custom recipients"""
-        # Mock settings
-        mock_settings.SMTP_HOST = 'smtp.test.com'
-        mock_settings.SMTP_PORT = 587
-        mock_settings.SMTP_USERNAME = 'test@example.com'
-        mock_settings.SMTP_PASSWORD = 'password'
-        mock_settings.EMAIL_RECIPIENTS = ['default@example.com']
-        
-        # Mock SMTP server
-        mock_server = MagicMock()
-        mock_smtp.return_value.__enter__.return_value = mock_server
-        
-        # Test with custom recipients
-        html_content = "<html><body>Test Report</body></html>"
-        custom_recipients = ['custom1@example.com', 'custom2@example.com']
-        result = self.email_service.send_report(html_content, recipients=custom_recipients)
-        
-        # Assertions
-        assert result is True
-        mock_server.send_message.assert_called_once()
-        
-        # Check that the message was created with custom recipients
-        call_args = mock_server.send_message.call_args[0][0]
-        assert call_args['To'] == 'custom1@example.com, custom2@example.com'
-    
-    @patch('services.email_service.smtplib.SMTP')
-    @patch('services.email_service.settings')
-    def test_send_report_with_custom_subject(self, mock_settings, mock_smtp):
+    def test_send_report_with_custom_subject(self, mock_settings, mock_post):
         """Test email sending with custom subject"""
         # Mock settings
-        mock_settings.SMTP_HOST = 'smtp.test.com'
-        mock_settings.SMTP_PORT = 587
-        mock_settings.SMTP_USERNAME = 'test@example.com'
-        mock_settings.SMTP_PASSWORD = 'password'
-        mock_settings.EMAIL_RECIPIENTS = ['recipient@example.com']
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
         
-        # Mock SMTP server
-        mock_server = MagicMock()
-        mock_smtp.return_value.__enter__.return_value = mock_server
+        # Mock successful webhook response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
         
         # Test with custom subject
         html_content = "<html><body>Test Report</body></html>"
         custom_subject = "Custom Test Report"
-        result = self.email_service.send_report(html_content, subject=custom_subject)
+        result = self.email_service.send_report(html_content, recipients=['test@example.com'], subject=custom_subject)
         
         # Assertions
         assert result is True
         
-        # Check that the message was created with custom subject
-        call_args = mock_server.send_message.call_args[0][0]
-        assert call_args['Subject'] == custom_subject
+        # Check that the webhook was called with custom subject
+        call_args = mock_post.call_args[1]['json']
+        assert call_args['subject'] == custom_subject
     
+    @patch('services.email_service.requests.post')
     @patch('services.email_service.settings')
-    def test_send_report_no_recipients(self, mock_settings):
-        """Test email sending with no recipients configured"""
-        # Mock settings with no recipients
-        mock_settings.EMAIL_RECIPIENTS = []
+    def test_send_report_no_recipients(self, mock_settings, mock_post):
+        """Test email sending with no recipients"""
+        # Mock settings
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
         
-        # Test
+        # Mock successful webhook response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
+        
+        # Test with no recipients (should use default)
         html_content = "<html><body>Test Report</body></html>"
         result = self.email_service.send_report(html_content)
         
         # Assertions
-        assert result is False
-    
-    @patch('services.email_service.smtplib.SMTP')
-    @patch('services.email_service.settings')
-    def test_send_report_smtp_error(self, mock_settings, mock_smtp):
-        """Test email sending with SMTP error"""
-        # Mock settings
-        mock_settings.SMTP_HOST = 'smtp.test.com'
-        mock_settings.SMTP_PORT = 587
-        mock_settings.SMTP_USERNAME = 'test@example.com'
-        mock_settings.SMTP_PASSWORD = 'password'
-        mock_settings.EMAIL_RECIPIENTS = ['recipient@example.com']
+        assert result is True
         
-        # Mock SMTP server to raise exception
-        mock_smtp.side_effect = Exception("SMTP connection failed")
+        # Check that default recipient was used
+        call_args = mock_post.call_args[1]['json']
+        assert call_args['recipient'] == 'default@example.com'
+    
+    @patch('services.email_service.requests.post')
+    @patch('services.email_service.settings')
+    def test_send_report_webhook_error(self, mock_settings, mock_post):
+        """Test email sending with webhook error"""
+        # Mock settings
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
+        
+        # Mock failed webhook response
+        mock_response = Mock()
+        mock_response.status_code = 500
+        mock_response.text = 'Internal Server Error'
+        mock_post.return_value = mock_response
         
         # Test
         html_content = "<html><body>Test Report</body></html>"
-        result = self.email_service.send_report(html_content)
+        result = self.email_service.send_report(html_content, recipients=['test@example.com'])
+        
+        # Assertions
+        assert result is False
+    
+    @patch('services.email_service.requests.post')
+    @patch('services.email_service.settings')
+    def test_send_report_request_exception(self, mock_settings, mock_post):
+        """Test email sending with request exception"""
+        # Mock settings
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
+        
+        # Mock request exception
+        mock_post.side_effect = requests.exceptions.RequestException("Connection failed")
+        
+        # Test
+        html_content = "<html><body>Test Report</body></html>"
+        result = self.email_service.send_report(html_content, recipients=['test@example.com'])
         
         # Assertions
         assert result is False
@@ -250,20 +249,17 @@ class TestEmailService:
 class TestEmailServiceIntegration:
     """Integration tests for EmailService"""
     
-    @patch('services.email_service.smtplib.SMTP')
+    @patch('services.email_service.requests.post')
     @patch('services.email_service.settings')
-    def test_complete_email_workflow(self, mock_settings, mock_smtp):
-        """Test complete email workflow from formatting to sending"""
+    def test_complete_email_workflow(self, mock_settings, mock_post):
+        """Test complete email workflow from formatting to sending via webhook"""
         # Mock settings
-        mock_settings.SMTP_HOST = 'smtp.test.com'
-        mock_settings.SMTP_PORT = 587
-        mock_settings.SMTP_USERNAME = 'test@example.com'
-        mock_settings.SMTP_PASSWORD = 'password'
-        mock_settings.EMAIL_RECIPIENTS = ['recipient@example.com']
+        mock_settings.N8N_WEBHOOK_URL = 'https://test.webhook.url'
         
-        # Mock SMTP server
-        mock_server = MagicMock()
-        mock_smtp.return_value.__enter__.return_value = mock_server
+        # Mock successful webhook response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_post.return_value = mock_response
         
         # Test data
         summaries = [
@@ -280,10 +276,15 @@ class TestEmailServiceIntegration:
         html_content = service.format_html_report(summaries)
         
         # Send report
-        result = service.send_report(html_content)
+        result = service.send_report(html_content, recipients=['test@example.com'])
         
         # Assertions
         assert result is True
         assert 'Integration Test Article' in html_content
         assert 'This is an integration test summary.' in html_content
-        mock_server.send_message.assert_called_once()
+        mock_post.assert_called_once()
+        
+        # Check webhook payload
+        call_args = mock_post.call_args[1]['json']
+        assert call_args['recipient'] == 'test@example.com'
+        assert 'Integration Test Article' in call_args['body']

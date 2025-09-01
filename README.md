@@ -14,9 +14,9 @@ A collaborative web application for collecting, processing, and reporting on med
 
 - **Backend**: FastAPI with Python 3.8+
 - **Database**: SQLAlchemy ORM with SQLite
-- **AI Integration**: Claude API (Anthropic)
+- **AI Integration**: Google Gemini API
 - **Web Scraping**: BeautifulSoup4 and newspaper3k
-- **Email**: SMTP with configurable providers
+- **Email**: N8N webhook for reliable delivery
 - **Frontend**: Vanilla HTML, CSS, JavaScript
 
 ## Quick Start
@@ -79,11 +79,8 @@ DATABASE_URL=sqlite:///media_monitoring.db
 CLAUDE_API_KEY=your-claude-api-key-here
 CLAUDE_API_URL=https://api.anthropic.com/v1/messages
 
-# Email Configuration
-SMTP_HOST=smtp.gmail.com
-SMTP_PORT=587
-SMTP_USERNAME=your-email@gmail.com
-SMTP_PASSWORD=your-app-password
+# Email Configuration (N8N Webhook - more reliable than SMTP)
+N8N_WEBHOOK_URL=https://mistry247.app.n8n.cloud/webhook/ee237986-ca83-4bfa-bfc4-74a297f49450
 EMAIL_RECIPIENTS=recipient1@example.com,recipient2@example.com
 
 # Application Settings
@@ -95,8 +92,8 @@ PORT=8000
 
 ### Required Configuration
 
-1. **Claude API Key**: Sign up at [Anthropic](https://www.anthropic.com/) and get your API key
-2. **Email Settings**: Configure SMTP settings for your email provider
+1. **Gemini API Key**: Get your API key from [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. **Email Webhook**: N8N webhook URL is pre-configured for reliable email delivery
 3. **Recipients**: Set email addresses that should receive reports
 
 ## Usage
@@ -436,8 +433,8 @@ df -h /opt/media-monitoring-agent/
 ### Common Issues
 
 1. **Database not found**: Run `python migrate.py migrate` to initialize
-2. **Claude API errors**: Check your API key and rate limits
-3. **Email not sending**: Verify SMTP settings and credentials
+2. **Gemini API errors**: Check your API key and rate limits
+3. **Email not sending**: Check N8N webhook URL and recipient configuration
 4. **Port already in use**: Change the PORT in your `.env` file
 5. **Permission denied**: Check file ownership and permissions
 6. **Service won't start**: Check systemd logs with `journalctl -u media-monitoring`

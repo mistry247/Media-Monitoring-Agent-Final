@@ -16,11 +16,19 @@ class MediaMonitoringApp {
         this.pendingArticlesTable = document.getElementById('pending-articles-table');
         this.pendingArticlesBody = document.getElementById('pending-articles-body');
         this.refreshButton = document.getElementById('refresh-articles');
-        this.pastedContentTextarea = document.getElementById('pasted-content');
         this.recipientEmailInput = document.getElementById('recipient-email');
         this.generateMediaReportButton = document.getElementById('generate-media-report');
         this.generateHansardReportButton = document.getElementById('generate-hansard-report');
         this.reportFeedbackElement = document.getElementById('report-feedback');
+        
+        // Manual articles elements
+        this.manualArticlesContainer = document.getElementById('manual-articles-container');
+        this.manualArticlesLoading = document.getElementById('manual-articles-loading');
+        this.manualArticlesEmpty = document.getElementById('manual-articles-empty');
+        this.manualArticlesList = document.getElementById('manual-articles-list');
+        this.refreshManualArticlesButton = document.getElementById('refresh-manual-articles');
+        this.processManualArticlesButton = document.getElementById('process-manual-articles');
+        this.manualArticlesFeedback = document.getElementById('manual-articles-feedback');
         
         // Dashboard state
         this.refreshInterval = null;
@@ -83,11 +91,9 @@ class MediaMonitoringApp {
         this.generateMediaReportButton.addEventListener('click', () => this.handleGenerateMediaReport());
         this.generateHansardReportButton.addEventListener('click', () => this.handleGenerateHansardReport());
         
-        // Auto-save pasted content to localStorage and validate
-        this.pastedContentTextarea.addEventListener('input', () => {
-            this.validatePastedContent();
-            this.savePastedContent();
-        });
+        // Manual articles events
+        this.refreshManualArticlesButton.addEventListener('click', () => this.refreshManualArticles());
+        this.processManualArticlesButton.addEventListener('click', () => this.handleProcessManualArticles());
         
         // Validate recipient email
         this.recipientEmailInput.addEventListener('blur', () => this.validateRecipientEmail());
@@ -409,8 +415,8 @@ class MediaMonitoringApp {
         // Load pending articles immediately
         this.refreshPendingArticles();
         
-        // Restore pasted content from localStorage
-        this.restorePastedContent();
+        // Load manual articles immediately
+        this.refreshManualArticles();
         
         // Start auto-refresh
         this.startAutoRefresh();
@@ -537,14 +543,7 @@ class MediaMonitoringApp {
             
             this.setReportButtonLoading(this.generateMediaReportButton, true);
             
-            const pastedContent = this.pastedContentTextarea.value.trim();
             const recipientEmail = this.recipientEmailInput.value.trim();
-
-            // Validate pasted content length
-            if (pastedContent.length > 100000) {
-                this.showReportError('Pasted content exceeds maximum length of 100,000 characters');
-                return;
-            }
 
             const headers = {
                 'Content-Type': 'application/json',
@@ -559,7 +558,7 @@ class MediaMonitoringApp {
                 method: 'POST',
                 headers: headers,
                 body: JSON.stringify({
-                    pasted_content: pastedContent,
+                    pasted_content: "", // No longer using pasted content - handled by manual articles
                     recipient_email: recipientEmail
                 })
             });
@@ -579,9 +578,6 @@ class MediaMonitoringApp {
             
             if (response.ok && result.success) {
                 this.showReportSuccess(result.message || 'Media report generated successfully!');
-                // Clear pasted content after successful report generation
-                this.pastedContentTextarea.value = '';
-                this.savePastedContent();
                 // Refresh pending articles as they may have been processed
                 setTimeout(() => this.refreshPendingArticles(), 1000);
             } else {
@@ -657,33 +653,10 @@ class MediaMonitoringApp {
         }
     }
 
-    /**
-     * Save pasted content to localStorage
-     */
-    savePastedContent() {
-        try {
-            localStorage.setItem('media-monitoring-pasted-content', this.pastedContentTextarea.value);
-        } catch (error) {
-            console.warn('Failed to save pasted content to localStorage:', error);
-        }
-    }
+
 
     /**
-     * Restore pasted content from localStorage
-     */
-    restorePastedContent() {
-        try {
-            const savedContent = localStorage.getItem('media-monitoring-pasted-content');
-            if (savedContent) {
-                this.pastedContentTextarea.value = savedContent;
-            }
-        } catch (error) {
-            console.warn('Failed to restore pasted content from localStorage:', error);
-        }
-    }
-
-    /**
-     * Start auto-refresh for pending articles
+     * Start auto-refresh for pending articles and manual articles
      */
     startAutoRefresh() {
         if (this.refreshInterval) {
@@ -694,6 +667,7 @@ class MediaMonitoringApp {
             this.refreshInterval = setInterval(() => {
                 if (!document.hidden) {
                     this.refreshPendingArticles();
+                    this.refreshManualArticles();
                 }
             }, this.refreshIntervalMs);
         }
@@ -720,6 +694,7 @@ class MediaMonitoringApp {
             // Page is visible, restart auto-refresh and refresh immediately
             this.startAutoRefresh();
             this.refreshPendingArticles();
+            this.refreshManualArticles();
         }
     }
 
@@ -809,29 +784,375 @@ class MediaMonitoringApp {
         }
     }
 
-    /**
-     * Validate pasted content length and show character count
-     */
-    validatePastedContent() {
-        const content = this.pastedContentTextarea.value;
-        const maxLength = 100000;
-        const currentLength = content.length;
+    // ===== MANUAL ARTICLES FUNCTIONALITY =====
 
-        // Update character count display if it exists
-        const charCountElement = document.getElementById('char-count');
-        if (charCountElement) {
-            charCountElement.textContent = `${currentLength.toLocaleString()} / ${maxLength.toLocaleString()} characters`;
+    /**
+     * Refresh manual articles list
+     */
+    async refreshManualArticles() {
+        try {
+            this.setManualArticlesLoading(true);
             
-            if (currentLength > maxLength * 0.9) {
-                charCountElement.className = 'char-count warning';
-            } else if (currentLength > maxLength) {
-                charCountElement.className = 'char-count error';
-            } else {
-                charCountElement.className = 'char-count';
+            const response = await fetch('/api/manual-articles/', {
+                method: 'GET',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
+            
+            const articles = await response.json();
+            this.displayManualArticles(articles);
+            
+        } catch (error) {
+            console.error('Error refreshing manual articles:', error);
+            this.showManualArticlesFeedback('Failed to load manual articles. Please try again.', 'error');
+        } finally {
+            this.setManualArticlesLoading(false);
+        }
+    }
+
+    /**
+     * Display manual articles in the UI
+     */
+    displayManualArticles(articles) {
+        if (!articles || articles.length === 0) {
+            this.manualArticlesEmpty.style.display = 'block';
+            this.manualArticlesList.style.display = 'none';
+            this.processManualArticlesButton.disabled = true;
+            return;
         }
 
-        return currentLength <= maxLength;
+        this.manualArticlesEmpty.style.display = 'none';
+        this.manualArticlesList.style.display = 'block';
+        
+        // Clear existing articles
+        this.manualArticlesList.innerHTML = '';
+        
+        let hasContentCount = 0;
+        
+        articles.forEach(article => {
+            const articleElement = this.createManualArticleElement(article);
+            this.manualArticlesList.appendChild(articleElement);
+            
+            if (article.has_content) {
+                hasContentCount++;
+            }
+        });
+        
+        // Enable process button if any articles have content
+        this.processManualArticlesButton.disabled = hasContentCount === 0;
+        
+        // Update button text with count
+        const buttonText = this.processManualArticlesButton.querySelector('.btn-text');
+        if (hasContentCount > 0) {
+            buttonText.textContent = `Process ${hasContentCount} Manual Article${hasContentCount !== 1 ? 's' : ''}`;
+        } else {
+            buttonText.textContent = 'Process All Manual Articles';
+        }
+    }
+
+    /**
+     * Create a manual article element
+     */
+    createManualArticleElement(article) {
+        const div = document.createElement('div');
+        div.className = 'manual-article-item';
+        div.dataset.articleId = article.id;
+        
+        const submittedDate = new Date(article.submitted_at).toLocaleString();
+        
+        div.innerHTML = `
+            <div class="manual-article-header">
+                <div class="manual-article-info">
+                    <div class="manual-article-url">${this.escapeHtml(article.url)}</div>
+                    <div class="manual-article-meta">
+                        Submitted by ${this.escapeHtml(article.submitted_by)} on ${submittedDate}
+                        <span class="manual-article-status ${article.has_content ? 'has-content' : 'needs-content'}">
+                            ${article.has_content ? 'Ready' : 'Needs Content'}
+                        </span>
+                    </div>
+                </div>
+                <button class="manual-article-remove" title="Remove article" data-article-id="${article.id}">
+                    ×
+                </button>
+            </div>
+            <div class="manual-article-content">
+                <textarea 
+                    class="manual-article-textarea ${article.has_content ? 'has-content' : ''}"
+                    placeholder="Paste the article content here..."
+                    data-article-id="${article.id}"
+                    maxlength="100000"
+                >${this.escapeHtml(article.article_content || '')}</textarea>
+                <div class="manual-article-char-count">
+                    ${(article.article_content || '').length.toLocaleString()} / 100,000 characters
+                </div>
+            </div>
+        `;
+        
+        // Add event listeners
+        const textarea = div.querySelector('.manual-article-textarea');
+        const removeButton = div.querySelector('.manual-article-remove');
+        const charCount = div.querySelector('.manual-article-char-count');
+        
+        // Textarea events
+        textarea.addEventListener('input', () => {
+            this.handleManualArticleContentChange(article.id, textarea, charCount);
+        });
+        
+        textarea.addEventListener('blur', () => {
+            this.saveManualArticleContent(article.id, textarea.value);
+        });
+        
+        // Remove button event
+        removeButton.addEventListener('click', () => {
+            this.handleRemoveManualArticle(article.id, article.url);
+        });
+        
+        return div;
+    }
+
+    /**
+     * Handle manual article content change
+     */
+    handleManualArticleContentChange(articleId, textarea, charCount) {
+        const content = textarea.value;
+        const length = content.length;
+        const maxLength = 100000;
+        
+        // Update character count
+        charCount.textContent = `${length.toLocaleString()} / ${maxLength.toLocaleString()} characters`;
+        
+        // Update textarea styling
+        if (content.trim()) {
+            textarea.classList.add('has-content');
+        } else {
+            textarea.classList.remove('has-content');
+        }
+        
+        // Update status
+        const statusElement = textarea.closest('.manual-article-item').querySelector('.manual-article-status');
+        if (content.trim()) {
+            statusElement.textContent = 'Ready';
+            statusElement.className = 'manual-article-status has-content';
+        } else {
+            statusElement.textContent = 'Needs Content';
+            statusElement.className = 'manual-article-status needs-content';
+        }
+        
+        // Update process button state
+        this.updateProcessButtonState();
+    }
+
+    /**
+     * Save manual article content
+     */
+    async saveManualArticleContent(articleId, content) {
+        try {
+            const response = await fetch(`/api/manual-articles/${articleId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    article_content: content
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Silently save - no user feedback needed for auto-save
+            console.log(`Saved content for article ${articleId}`);
+            
+        } catch (error) {
+            console.error(`Error saving content for article ${articleId}:`, error);
+            // Could show a subtle error indicator here
+        }
+    }
+
+    /**
+     * Handle remove manual article
+     */
+    async handleRemoveManualArticle(articleId, articleUrl) {
+        if (!confirm(`Remove this article from manual processing?\n\n${articleUrl}`)) {
+            return;
+        }
+        
+        try {
+            const response = await fetch(`/api/manual-articles/${articleId}`, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            // Remove the article element from the UI
+            const articleElement = document.querySelector(`[data-article-id="${articleId}"]`);
+            if (articleElement) {
+                articleElement.remove();
+            }
+            
+            // Update process button state
+            this.updateProcessButtonState();
+            
+            // Check if list is now empty
+            const remainingArticles = this.manualArticlesList.querySelectorAll('.manual-article-item');
+            if (remainingArticles.length === 0) {
+                this.manualArticlesEmpty.style.display = 'block';
+                this.manualArticlesList.style.display = 'none';
+            }
+            
+            this.showManualArticlesFeedback('Article removed successfully', 'success');
+            
+        } catch (error) {
+            console.error(`Error removing article ${articleId}:`, error);
+            this.showManualArticlesFeedback('Failed to remove article. Please try again.', 'error');
+        }
+    }
+
+    /**
+     * Handle process manual articles
+     */
+    async handleProcessManualArticles() {
+        const recipientEmail = this.recipientEmailInput.value.trim();
+        
+        if (!recipientEmail) {
+            this.showManualArticlesFeedback('Please enter a recipient email address', 'error');
+            this.recipientEmailInput.focus();
+            return;
+        }
+        
+        if (!this.validateEmail(recipientEmail)) {
+            this.showManualArticlesFeedback('Please enter a valid email address', 'error');
+            this.recipientEmailInput.focus();
+            return;
+        }
+        
+        try {
+            this.setProcessButtonLoading(true);
+            this.showManualArticlesFeedback('Processing manual articles...', 'info');
+            
+            const response = await fetch('/api/manual-articles/process-batch', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    recipient_email: recipientEmail
+                })
+            });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                let message = result.message;
+                if (!result.email_sent) {
+                    message += ' (Note: Email sending failed)';
+                }
+                
+                this.showManualArticlesFeedback(message, 'success');
+                
+                // Refresh the manual articles list to remove processed articles
+                setTimeout(() => {
+                    this.refreshManualArticles();
+                }, 1000);
+                
+            } else {
+                this.showManualArticlesFeedback(result.message || 'Processing failed', 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error processing manual articles:', error);
+            this.showManualArticlesFeedback('Failed to process articles. Please try again.', 'error');
+        } finally {
+            this.setProcessButtonLoading(false);
+        }
+    }
+
+    /**
+     * Update process button state based on articles with content
+     */
+    updateProcessButtonState() {
+        const articlesWithContent = this.manualArticlesList.querySelectorAll('.manual-article-textarea.has-content');
+        const count = articlesWithContent.length;
+        
+        this.processManualArticlesButton.disabled = count === 0;
+        
+        const buttonText = this.processManualArticlesButton.querySelector('.btn-text');
+        if (count > 0) {
+            buttonText.textContent = `Process ${count} Manual Article${count !== 1 ? 's' : ''}`;
+        } else {
+            buttonText.textContent = 'Process All Manual Articles';
+        }
+    }
+
+    /**
+     * Set manual articles loading state
+     */
+    setManualArticlesLoading(loading) {
+        if (loading) {
+            this.manualArticlesLoading.style.display = 'block';
+            this.manualArticlesEmpty.style.display = 'none';
+            this.manualArticlesList.style.display = 'none';
+        } else {
+            this.manualArticlesLoading.style.display = 'none';
+        }
+    }
+
+    /**
+     * Set process button loading state
+     */
+    setProcessButtonLoading(loading) {
+        const buttonText = this.processManualArticlesButton.querySelector('.btn-text');
+        const buttonLoading = this.processManualArticlesButton.querySelector('.btn-loading');
+        
+        if (loading) {
+            buttonText.hidden = true;
+            buttonLoading.hidden = false;
+            this.processManualArticlesButton.disabled = true;
+        } else {
+            buttonText.hidden = false;
+            buttonLoading.hidden = true;
+            this.updateProcessButtonState(); // This will set the correct disabled state
+        }
+    }
+
+    /**
+     * Show manual articles feedback
+     */
+    showManualArticlesFeedback(message, type = 'info') {
+        this.manualArticlesFeedback.textContent = message;
+        this.manualArticlesFeedback.className = `feedback ${type}`;
+        this.manualArticlesFeedback.style.display = 'block';
+        
+        // Auto-hide success messages
+        if (type === 'success') {
+            setTimeout(() => {
+                this.manualArticlesFeedback.style.display = 'none';
+            }, 5000);
+        }
+    }
+
+    /**
+     * Escape HTML to prevent XSS
+     */
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 }
 

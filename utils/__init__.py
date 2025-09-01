@@ -1,1 +1,3 @@
-# Utils package for shared utilities
+"""
+Utilities package for Media Monitoring Agent
+"""

@@ -50,6 +50,16 @@ class HansardQuestion(Base):
     timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
     source_articles = Column(Text, nullable=True)  # JSON array of related article IDs
 
+class ManualInputArticle(Base):
+    """Model for manually input articles for processing"""
+    __tablename__ = "manual_input_articles"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, nullable=False, index=True)
+    submitted_by = Column(String, nullable=False)
+    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    article_content = Column(Text, nullable=True)  # Can store long article text, initially empty/null
+
 def get_db():
     """Dependency to get database session"""
     db = SessionLocal()

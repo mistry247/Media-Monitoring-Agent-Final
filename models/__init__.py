@@ -1,1 +1,3 @@
-# Models package for data models and database schemas
+"""
+Pydantic models package for Media Monitoring Agent
+"""

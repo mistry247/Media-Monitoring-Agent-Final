@@ -8,8 +8,6 @@ from datetime import datetime, timedelta
 from dataclasses import dataclass
 from enum import Enum
 import asyncio
-import smtplib
-from email.mime.text import MIMEText
 
 # Optional imports
 try:
@@ -318,58 +316,53 @@ async def check_gemini_api_health() -> HealthCheckResult:
                 details={"error": error_str}
             )
 
-async def check_smtp_health() -> HealthCheckResult:
-    """Check SMTP server connectivity"""
+async def check_webhook_health() -> HealthCheckResult:
+    """Check N8N webhook connectivity"""
     try:
-        # Skip external SMTP check in LOCAL_MODE
+        # Skip external webhook check in LOCAL_MODE
         if getattr(settings, 'LOCAL_MODE', False):
             return HealthCheckResult(
-                name="smtp",
+                name="webhook",
                 status=HealthStatus.HEALTHY,
-                message="SMTP check skipped (LOCAL_MODE)",
+                message="Webhook check skipped (LOCAL_MODE)",
                 duration_ms=0.0,
                 details={"local_mode": True}
             )
         
-        smtp_host = getattr(settings, 'SMTP_HOST', None)
-        smtp_port = getattr(settings, 'SMTP_PORT', None)
-        smtp_username = getattr(settings, 'SMTP_USERNAME', None)
-        smtp_password = getattr(settings, 'SMTP_PASSWORD', None)
+        webhook_url = getattr(settings, 'N8N_WEBHOOK_URL', None)
         
-        if not all([smtp_host, smtp_port, smtp_username, smtp_password]):
+        if not webhook_url:
             return HealthCheckResult(
-                name="smtp",
-                status=HealthStatus.DEGRADED,
-                message="SMTP configuration incomplete",
-                duration_ms=0.0,
-                details={
-                    "configured": {
-                        "host": bool(smtp_host),
-                        "port": bool(smtp_port),
-                        "username": bool(smtp_username),
-                        "password": bool(smtp_password)
-                    }
-                }
+                name="webhook",
+                status=HealthStatus.UNHEALTHY,
+                message="N8N webhook URL not configured",
+                duration_ms=0.0
             )
         
-        # Test SMTP connection
-        with smtplib.SMTP(smtp_host, smtp_port) as server:
-            server.starttls()
-            server.login(smtp_username, smtp_password)
+        if not webhook_url.startswith(('http://', 'https://')):
+            return HealthCheckResult(
+                name="webhook",
+                status=HealthStatus.UNHEALTHY,
+                message="N8N webhook URL is not a valid HTTP/HTTPS URL",
+                duration_ms=0.0,
+                details={"webhook_url": webhook_url}
+            )
         
+        # For webhook, we just validate the URL format and configuration
+        # We don't test the actual webhook to avoid sending test emails
         return HealthCheckResult(
-            name="smtp",
+            name="webhook",
             status=HealthStatus.HEALTHY,
-            message="SMTP server is accessible",
+            message="N8N webhook is configured",
             duration_ms=0.0,
-            details={"host": smtp_host, "port": smtp_port}
+            details={"webhook_configured": True}
         )
     
     except Exception as e:
         return HealthCheckResult(
-            name="smtp",
+            name="webhook",
             status=HealthStatus.UNHEALTHY,
-            message=f"SMTP connection failed: {str(e)}",
+            message=f"Webhook check failed: {str(e)}",
             duration_ms=0.0,
             details={"error": str(e)}
         )
@@ -493,7 +486,7 @@ async def check_memory_usage() -> HealthCheckResult:
 # Register all health checks
 health_checker.register_check("database", check_database_health, timeout=5.0)
 health_checker.register_check("gemini_api", check_gemini_api_health, timeout=10.0)
-health_checker.register_check("smtp", check_smtp_health, timeout=5.0)
+health_checker.register_check("webhook", check_webhook_health, timeout=2.0)
 health_checker.register_check("disk_space", check_disk_space, timeout=2.0)
 health_checker.register_check("memory", check_memory_usage, timeout=2.0)
 

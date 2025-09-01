@@ -13,6 +13,7 @@ import os
 
 from api.articles import router as articles_router
 from api.reports import router as reports_router
+from api.manual_articles import router as manual_articles_router
 from config import settings
 from database import init_db
 from utils.logging_config import get_logger, log_operation
@@ -243,6 +244,7 @@ app.add_middleware(
 # Include API routers
 app.include_router(articles_router)
 app.include_router(reports_router)
+app.include_router(manual_articles_router)
 
 # Mount static files directory
 app.mount("/static", StaticFiles(directory="static"), name="static")

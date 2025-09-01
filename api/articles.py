@@ -34,44 +34,82 @@ async def submit_article(
     db: Session = Depends(get_db)
 ):
     """
-    Submit a new article URL for processing - MINIMAL DATABASE ONLY
-    Only saves URL and submitter to database, no validation, no external operations
+    Submit a new article URL for processing with automatic routing
+    Routes to manual_input_articles if domain is in manual sites list, otherwise to pending_articles
     """
     start_time = time.time()
     
     try:
-        # Create new pending article directly - no validation, no duplicate checks, no external calls
-        from database import PendingArticle
+        from database import PendingArticle, ManualInputArticle
         from datetime import datetime
+        from config import settings
         
-        new_article = PendingArticle(
-            url=submission.url,
-            submitted_by=submission.submitted_by,
-            timestamp=datetime.utcnow()
-        )
+        # Check if this URL's domain requires manual processing
+        is_manual_site = settings.is_manual_site(submission.url)
         
-        db.add(new_article)
-        db.commit()
-        db.refresh(new_article)
-        
-        duration_ms = (time.time() - start_time) * 1000
-        
-        logger.info(f"Article submitted successfully in {duration_ms:.2f}ms", extra={
-            "article_id": new_article.id,
-            "url": submission.url,
-            "submitter": submission.submitted_by,
-            "duration_ms": duration_ms
-        })
-        
-        return {
-            "success": True,
-            "message": "Article submitted successfully",
-            "id": new_article.id,
-            "url": new_article.url,
-            "submitted_by": new_article.submitted_by,
-            "timestamp": new_article.timestamp.isoformat(),
-            "status": "pending"
-        }
+        if is_manual_site:
+            # Route to manual input articles table
+            new_article = ManualInputArticle(
+                url=submission.url,
+                submitted_by=submission.submitted_by,
+                submitted_at=datetime.utcnow(),
+                article_content=None  # Initially empty, will be filled manually
+            )
+            
+            db.add(new_article)
+            db.commit()
+            db.refresh(new_article)
+            
+            duration_ms = (time.time() - start_time) * 1000
+            
+            logger.info(f"Article routed to manual processing in {duration_ms:.2f}ms", extra={
+                "article_id": new_article.id,
+                "url": submission.url,
+                "submitter": submission.submitted_by,
+                "duration_ms": duration_ms,
+                "routing": "manual"
+            })
+            
+            return {
+                "success": True,
+                "message": "Article submitted for manual processing (paywalled/subscription site detected)",
+                "id": new_article.id,
+                "url": new_article.url,
+                "submitted_by": new_article.submitted_by,
+                "timestamp": new_article.submitted_at.isoformat(),
+                "status": "manual_processing"
+            }
+        else:
+            # Route to pending articles table for automatic processing
+            new_article = PendingArticle(
+                url=submission.url,
+                submitted_by=submission.submitted_by,
+                timestamp=datetime.utcnow()
+            )
+            
+            db.add(new_article)
+            db.commit()
+            db.refresh(new_article)
+            
+            duration_ms = (time.time() - start_time) * 1000
+            
+            logger.info(f"Article submitted for automatic processing in {duration_ms:.2f}ms", extra={
+                "article_id": new_article.id,
+                "url": submission.url,
+                "submitter": submission.submitted_by,
+                "duration_ms": duration_ms,
+                "routing": "automatic"
+            })
+            
+            return {
+                "success": True,
+                "message": "Article submitted for automatic processing",
+                "id": new_article.id,
+                "url": new_article.url,
+                "submitted_by": new_article.submitted_by,
+                "timestamp": new_article.timestamp.isoformat(),
+                "status": "pending"
+            }
         
     except Exception as e:
         db.rollback()
