@@ -10,6 +10,7 @@ import os
 import sys
 import logging
 from pathlib import Path
+from sqlalchemy.exc import SQLAlchemyError
 
 # Add the current directory to Python path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent))
@@ -119,6 +120,22 @@ def show_configuration_info():
     logger.info(f"Log Level: {settings.LOG_LEVEL}")
     logger.info("================================")
 
+def init_db():
+    """
+    Initializes the database by creating all tables defined in the Base metadata.
+    This function is safe to run multiple times; it will not recreate existing tables.
+    """
+    logger.info("Starting database initialization...")
+    try:
+        # The create_all() method checks for the existence of tables before creating them.
+        # It will NOT delete or alter existing tables.
+        Base.metadata.create_all(bind=engine)
+        logger.info("✅ Database tables checked/created successfully.")
+    except SQLAlchemyError as e:
+        logger.error(f"❌ An error occurred during database initialization: {e}")
+        # Re-raise the exception to cause the script to fail if there's a real DB error
+        raise e
+
 def main():
     """Main initialization function"""
     print("Media Monitoring Agent - Database Initialization")
@@ -155,5 +172,6 @@ def main():
         return 1
 
 if __name__ == "__main__":
+    init_db()
     exit_code = main()
     sys.exit(exit_code)
