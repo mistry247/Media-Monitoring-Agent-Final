@@ -1161,6 +1161,25 @@ class MediaMonitoringApp {
         const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
         return re.test(String(email).toLowerCase());
     }
+
+    /**
+     * Set button loading state (generic)
+     */
+    setButtonLoading(button, isLoading) {
+        if (!button) return;
+        const text = button.querySelector('.btn-text');
+        const loading = button.querySelector('.btn-loading');
+
+        if (isLoading) {
+            button.disabled = true;
+            if (text) text.hidden = true;
+            if (loading) loading.hidden = false;
+        } else {
+            button.disabled = false;
+            if (text) text.hidden = false;
+            if (loading) loading.hidden = true;
+        }
+    }
 }
 
 // Initialize the application when DOM is loaded
