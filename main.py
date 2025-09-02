@@ -11,18 +11,34 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 import os
 
-from api.articles import router as articles_router
-from api.reports import router as reports_router
-from api.manual_articles import router as manual_articles_router
-from config import settings
-from database import init_db
-from utils.logging_config import get_logger, log_operation
-from utils.error_handlers import (
-    global_exception_handler,
-    validation_exception_handler,
-    create_error_response
-)
-from utils.health_check import get_health_status
+print("=== main.py: Starting application import sequence ===")
+
+try:
+    print("Importing config...")
+    from config import settings
+    print("Config imported successfully.")
+except Exception as e:
+    print(f"Error importing config: {e}")
+    raise
+
+try:
+    print("Importing database...")
+    import database
+    print("Database imported successfully.")
+except Exception as e:
+    print(f"Error importing database: {e}")
+    raise
+
+try:
+    print("Importing FastAPI and routers...")
+    from fastapi import FastAPI
+    from api import manual_articles
+    print("FastAPI and routers imported successfully.")
+except Exception as e:
+    print(f"Error importing FastAPI or routers: {e}")
+    raise
+
+print("=== main.py: All imports successful, creating FastAPI app ===")
 
 # Initialize logging
 logger = get_logger(__name__)
@@ -237,7 +253,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Add global exception handlers - TEMPORARILY DISABLED FOR DEBUGGING
+# Add global exception handlers - TEMPORARILY DISABLED
 # app.add_exception_handler(Exception, global_exception_handler)
 # app.add_exception_handler(RequestValidationError, validation_exception_handler)
 
