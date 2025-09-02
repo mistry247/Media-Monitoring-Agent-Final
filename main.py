@@ -10,6 +10,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 import os
+from utils.logging_config import get_logger
 
 print("=== main.py: Starting application import sequence ===")
 
