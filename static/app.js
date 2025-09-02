@@ -93,7 +93,8 @@ class MediaMonitoringApp {
         
         // Manual articles events
         this.refreshManualArticlesButton.addEventListener('click', () => this.refreshManualArticles());
-        this.processManualArticlesButton.addEventListener('click', () => this.handleProcessManualArticles());
+        // CHANGE BELOW: pass event to handler
+        this.processManualArticlesButton.addEventListener('click', (event) => this.handleProcessManualArticles(event));
         
         // Validate recipient email
         this.recipientEmailInput.addEventListener('blur', () => this.validateRecipientEmail());
