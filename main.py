@@ -12,6 +12,7 @@ from fastapi.exceptions import RequestValidationError
 import os
 from utils.logging_config import get_logger
 from database import SessionLocal, engine, init_db
+from utils.health_check import get_health_status
 
 print("=== main.py: Starting application import sequence ===")
 
