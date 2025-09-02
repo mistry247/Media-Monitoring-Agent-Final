@@ -1180,6 +1180,15 @@ class MediaMonitoringApp {
             if (loading) loading.hidden = true;
         }
     }
+
+    /**
+     * Show feedback message on an element
+     */
+    showFeedback(element, message, type = 'info') {
+        if (!element) return;
+        element.textContent = message;
+        element.className = `feedback feedback--${type}`;
+    }
 }
 
 // Initialize the application when DOM is loaded
