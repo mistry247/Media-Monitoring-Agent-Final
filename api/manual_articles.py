@@ -14,6 +14,7 @@ from services.ai_service import get_ai_service
 from services.email_service import EmailService
 from config import settings
 from utils.logging_config import get_logger
+from schemas import ManualArticleBatchPayload
 
 logger = get_logger(__name__)
 
