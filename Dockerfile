@@ -22,31 +22,30 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application code
+# Copy all application code into the container
 COPY . .
 
-# Create directories for data and logs
+# Create directories, copy entrypoint, and make it executable (as root)
 RUN mkdir -p /app/data /app/logs
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
-# Create non-root user
+# Create non-root user and transfer ownership of the entire app directory
 RUN useradd --create-home --shell /bin/bash app && \
     chown -R app:app /app
 
-# Switch to non-root user
+# --- Now, switch to the non-root user ---
 USER app
 
-# Initialize database
-
-# Expose port
+# Expose the port the app runs on
 EXPOSE 8000
 
-# Health check
+# Health check to run against the application
 HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application
-CMD ["python", "main.py"]
-
-COPY entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
+# Set the entrypoint script to run on container start
 ENTRYPOINT ["/app/entrypoint.sh"]
+
+# Set the default command that the entrypoint will execute
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
