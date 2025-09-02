@@ -11,6 +11,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.exceptions import RequestValidationError
 import os
 from utils.logging_config import get_logger
+from database import SessionLocal, engine, init_db
 
 print("=== main.py: Starting application import sequence ===")
 
