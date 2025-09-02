@@ -11,12 +11,13 @@ import sys
 import logging
 from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
+from database import engine, Base
 
 # Add the current directory to Python path so we can import our modules
 sys.path.insert(0, str(Path(__file__).parent))
 
 try:
-    from database import init_database, check_database_connection, engine, Base
+    from database import init_database, check_database_connection
     from config import settings
     import sqlalchemy
     from sqlalchemy import text
@@ -24,6 +25,10 @@ except ImportError as e:
     print(f"Error importing required modules: {e}")
     print("Make sure you have installed all dependencies with: pip install -r requirements.txt")
     sys.exit(1)
+
+# Make sure all your models are imported here so SQLAlchemy knows about them
+from models.article import PendingArticle, ProcessedArticle, ManualArticle
+from models.report import HansardQuestion
 
 # Configure logging
 logging.basicConfig(

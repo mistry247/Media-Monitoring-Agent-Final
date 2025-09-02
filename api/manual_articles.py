@@ -15,6 +15,7 @@ from services.email_service import EmailService
 from config import settings
 from utils.logging_config import get_logger
 from schemas import ManualArticleBatchPayload
+from utils.error_handlers import create_error_response
 
 logger = get_logger(__name__)
 
