@@ -5,17 +5,21 @@ import uuid
 import time
 import os
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, status
-from fastapi.responses import FileResponse
+
+from fastapi import FastAPI, Request, status, Depends, BackgroundTasks
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
 
 from api.articles import router as articles_router
 from api.reports import router as reports_router
 from api.manual_articles import router as manual_articles_router
-from database import init_db
+from database import init_db, get_db
+from schemas import ManualArticleBatchPayload
 from utils.logging_config import get_logger, log_operation
 from utils.health_check import get_health_status
+from utils.error_handlers import create_error_response
 
 print("=== main.py: Starting application import sequence ===")
 
