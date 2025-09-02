@@ -36,7 +36,6 @@ RUN useradd --create-home --shell /bin/bash app && \
 USER app
 
 # Initialize database
-RUN python init_db.py
 
 # Expose port
 EXPOSE 8000
@@ -47,3 +46,7 @@ HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
 
 # Run the application
 CMD ["python", "main.py"]
+
+COPY entrypoint.sh /app/entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
+ENTRYPOINT ["/app/entrypoint.sh"]
