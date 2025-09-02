@@ -3,7 +3,7 @@ API endpoints for manual article processing
 """
 import time
 from typing import List, Dict, Any
-from fastapi import APIRouter, Depends, HTTPException, status, Request
+from fastapi import APIRouter, Depends, HTTPException, status, Request, BackgroundTasks
 from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
@@ -70,9 +70,10 @@ async def get_manual_articles(db: Session = Depends(get_db)):
             detail="Failed to retrieve manual articles"
         )
 
-@router.post("/process-batch")
+@router.post("/process-batch", status_code=202, response_model=dict)
 async def process_manual_articles_batch(
-    request: ProcessBatchRequest,
+    payload: ManualArticleBatchPayload,
+    background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
@@ -84,135 +85,33 @@ async def process_manual_articles_batch(
     Returns:
         Processing results and report information
     """
-    start_time = time.time()
-    
-    try:
-        # Get all manual articles that have content
-        articles_with_content = db.query(ManualInputArticle).filter(
-            ManualInputArticle.article_content.isnot(None),
-            ManualInputArticle.article_content != ""
-        ).all()
-        
-        if not articles_with_content:
-            return {
-                "success": False,
-                "message": "No manual articles with content found to process",
-                "processed_count": 0
-            }
-        
-        logger.info(f"Processing {len(articles_with_content)} manual articles with content")
-        
-        # Initialize AI service
-        if not settings.GEMINI_API_KEY:
-            raise HTTPException(
-                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-                detail="AI service not configured - missing API key"
-            )
-        
-        ai_service = get_ai_service(settings.GEMINI_API_KEY, settings.GEMINI_MODEL)
-        
-        # Process each article through AI
-        successful_summaries = []
-        failed_summaries = []
-        processed_articles = []
-        
-        for article in articles_with_content:
-            try:
-                logger.info(f"Processing manual article: {article.url}")
-                
-                # Create content for AI processing
-                content_text = f"Title: Manual Input Article\nURL: {article.url}\nContent: {article.article_content}"
-                
-                # Get AI summary
-                summary_result = ai_service.summarize_content(content_text, "media", article.url)
-                
-                if summary_result.success:
-                    successful_summaries.append({
-                        'id': article.id,
-                        'url': article.url,
-                        'title': f"Manual Input: {article.url}",
-                        'summary': summary_result.content,
-                        'submitted_by': article.submitted_by,
-                        'timestamp': article.submitted_at,
-                        'content_length': len(article.article_content)
-                    })
-                    processed_articles.append(article.id)
-                    logger.info(f"Successfully processed manual article {article.id}")
-                else:
-                    failed_summaries.append({
-                        'id': article.id,
-                        'url': article.url,
-                        'error': summary_result.error
-                    })
-                    logger.warning(f"Failed to process manual article {article.id}: {summary_result.error}")
-                    
-            except Exception as e:
-                failed_summaries.append({
-                    'id': article.id,
-                    'url': article.url,
-                    'error': f"Processing exception: {str(e)}"
-                })
-                logger.error(f"Exception processing manual article {article.id}: {e}")
-        
-        if not successful_summaries:
-            return {
-                "success": False,
-                "message": "All manual article processing attempts failed",
-                "processed_count": 0,
-                "failed_count": len(failed_summaries),
-                "errors": failed_summaries
-            }
-        
-        # Generate and send email report
-        email_service = EmailService()
-        html_report = email_service.format_html_report(
-            successful_summaries, 
-            "Manual Articles Processing Report"
-        )
-        
-        # Send email report
-        email_subject = f"Manual Articles Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}"
-        recipients = [request.recipient_email] if request.recipient_email else None
-        email_sent = email_service.send_report(html_report, recipients=recipients, subject=email_subject)
-        
-        # Remove processed articles from manual queue
-        if processed_articles:
-            db.query(ManualInputArticle).filter(
-                ManualInputArticle.id.in_(processed_articles)
-            ).delete(synchronize_session=False)
-            db.commit()
-            logger.info(f"Removed {len(processed_articles)} processed articles from manual queue")
-        
-        duration_ms = (time.time() - start_time) * 1000
-        
-        result = {
-            "success": True,
-            "message": f"Successfully processed {len(successful_summaries)} manual articles",
-            "processed_count": len(successful_summaries),
-            "failed_count": len(failed_summaries),
-            "email_sent": email_sent,
-            "processing_time_ms": duration_ms
-        }
-        
-        if failed_summaries:
-            result["errors"] = failed_summaries
-        
-        if not email_sent:
-            result["message"] += " (email sending failed)"
-        
-        logger.info(f"Manual articles batch processing completed: {len(successful_summaries)} successful, {len(failed_summaries)} failed")
-        
-        return result
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error in manual articles batch processing: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Batch processing failed: {str(e)}"
-        )
+    print("--- 1. Received request to process manual articles batch ---")
+    print(f"--- Recipient Email: {payload.recipient_email} ---")
+    print(f"--- Received {len(payload.articles)} articles in payload. ---")
+
+    updated_ids = await article_service.update_manual_articles_content(db, payload.articles)
+
+    print(f"--- 2. Updated content for {len(updated_ids)} articles in the database. ---")
+
+    if not updated_ids:
+        print("--- ERROR: No articles were updated. Exiting. ---")
+        raise HTTPException(status_code=400, detail="No articles were updated or found.")
+
+    job_id = f"manual_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
+
+    print(f"--- 3. Starting background task with Job ID: {job_id} ---")
+
+    background_tasks.add_task(
+        report_service.generate_manual_report,
+        db_session=db,
+        article_ids=updated_ids,
+        recipient_email=payload.recipient_email,
+        job_id=job_id
+    )
+
+    print(f"--- 4. Background task for Job ID: {job_id} has been queued. ---")
+
+    return {"message": "Manual article processing has been started.", "job_id": job_id}
 
 @router.post("/{article_id}")
 async def update_article_content(
