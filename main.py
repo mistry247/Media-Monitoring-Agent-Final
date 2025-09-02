@@ -3,6 +3,7 @@ Media Monitoring Agent - FastAPI Application Entry Point
 """
 import uuid
 import time
+import os
 from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse
