@@ -4,14 +4,16 @@ Media Monitoring Agent - FastAPI Application Entry Point
 import uuid
 import time
 from contextlib import asynccontextmanager
-from fastapi import FastAPI, Request, Response
+from fastapi import FastAPI, Request, status
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.exceptions import RequestValidationError
-import os
-from utils.logging_config import get_logger
-from database import SessionLocal, engine, init_db
+
+from api.articles import router as articles_router
+from api.reports import router as reports_router
+from api.manual_articles import router as manual_articles_router
+from database import init_db
+from utils.logging_config import get_logger, log_operation
 from utils.health_check import get_health_status
 
 print("=== main.py: Starting application import sequence ===")
@@ -35,9 +37,6 @@ except Exception as e:
 try:
     print("Importing FastAPI and routers...")
     from fastapi import FastAPI
-    from api.articles import router as articles_router
-    from api.reports import router as reports_router
-    from api.manual_articles import router as manual_articles_router
     print("FastAPI and routers imported successfully.")
 except Exception as e:
     print(f"Error importing FastAPI or routers: {e}")
