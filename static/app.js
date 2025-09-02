@@ -1154,6 +1154,18 @@ class MediaMonitoringApp {
         div.textContent = text;
         return div.innerHTML;
     }
+
+    /**
+     * Validate email format
+     */
+    validateEmail(email) {
+        if (!email) {
+            return false;
+        }
+        // A simple but effective regex for email validation
+        const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        return re.test(String(email).toLowerCase());
+    }
 }
 
 // Initialize the application when DOM is loaded
