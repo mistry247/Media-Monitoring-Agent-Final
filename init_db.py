@@ -13,29 +13,14 @@ from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
 from database import engine, Base
 
-# Add the current directory to Python path so we can import our modules
-sys.path.insert(0, str(Path(__file__).parent))
-
-try:
-    from database import init_database, check_database_connection
-    from config import settings
-    import sqlalchemy
-    from sqlalchemy import text
-except ImportError as e:
-    print(f"Error importing required modules: {e}")
-    print("Make sure you have installed all dependencies with: pip install -r requirements.txt")
-    sys.exit(1)
-
-# Make sure all your models are imported here so SQLAlchemy knows about them
-from models.article import PendingArticle, ProcessedArticle, ManualArticle
-from models.report import HansardQuestion
-
-# Configure logging
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s'
-)
-logger = logging.getLogger(__name__)
+# --- Import the modules containing your models ---
+# This step is crucial. Importing the modules ensures that any classes
+# that inherit from `Base` are registered with SQLAlchemy's metadata.
+logging.info("Importing all model files to register them with SQLAlchemy Base...")
+from models import article
+from models import report
+logging.info("Model files imported successfully.")
+# --- End of model imports ---
 
 def create_data_directory():
     """Create data directory if it doesn't exist"""
@@ -128,17 +113,15 @@ def show_configuration_info():
 def init_db():
     """
     Initializes the database by creating all tables defined in the Base metadata.
-    This function is safe to run multiple times; it will not recreate existing tables.
     """
-    logger.info("Starting database initialization...")
+    logging.info("Starting database initialization...")
     try:
         # The create_all() method checks for the existence of tables before creating them.
         # It will NOT delete or alter existing tables.
         Base.metadata.create_all(bind=engine)
-        logger.info("✅ Database tables checked/created successfully.")
+        logging.info("✅ Database tables checked/created successfully.")
     except SQLAlchemyError as e:
-        logger.error(f"❌ An error occurred during database initialization: {e}")
-        # Re-raise the exception to cause the script to fail if there's a real DB error
+        logging.error(f"❌ An error occurred during database initialization: {e}")
         raise e
 
 def main():
@@ -177,6 +160,8 @@ def main():
         return 1
 
 if __name__ == "__main__":
+    # Configure logging for standalone script execution
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
     init_db()
     exit_code = main()
     sys.exit(exit_code)
