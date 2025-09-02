@@ -70,113 +70,6 @@ async def get_manual_articles(db: Session = Depends(get_db)):
             detail="Failed to retrieve manual articles"
         )
 
-@router.post("/{article_id}")
-async def update_article_content(
-    article_id: int,
-    request: UpdateContentRequest,
-    db: Session = Depends(get_db)
-):
-    """
-    Save the pasted text content for a specific article
-    
-    Args:
-        article_id: ID of the article to update
-        request: Request containing the article content
-        
-    Returns:
-        Success message with updated article info
-    """
-    try:
-        # Find the article
-        article = db.query(ManualInputArticle).filter(
-            ManualInputArticle.id == article_id
-        ).first()
-        
-        if not article:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Manual article with ID {article_id} not found"
-            )
-        
-        # Update the content
-        article.article_content = request.article_content.strip()
-        db.commit()
-        db.refresh(article)
-        
-        logger.info(f"Updated content for manual article {article_id} ({article.url})")
-        
-        return {
-            "success": True,
-            "message": "Article content updated successfully",
-            "id": article.id,
-            "url": article.url,
-            "content_length": len(article.article_content) if article.article_content else 0,
-            "has_content": bool(article.article_content and article.article_content.strip())
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating article content for {article_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to update article content"
-        )
-
-@router.delete("/{article_id}")
-async def remove_manual_article(
-    article_id: int,
-    db: Session = Depends(get_db)
-):
-    """
-    Remove an article from the manual queue
-    
-    Args:
-        article_id: ID of the article to remove
-        
-    Returns:
-        Success message
-    """
-    try:
-        # Find the article
-        article = db.query(ManualInputArticle).filter(
-            ManualInputArticle.id == article_id
-        ).first()
-        
-        if not article:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail=f"Manual article with ID {article_id} not found"
-            )
-        
-        # Store info for logging before deletion
-        article_url = article.url
-        article_submitter = article.submitted_by
-        
-        # Delete the article
-        db.delete(article)
-        db.commit()
-        
-        logger.info(f"Removed manual article {article_id} ({article_url}) submitted by {article_submitter}")
-        
-        return {
-            "success": True,
-            "message": "Article removed from manual queue",
-            "id": article_id,
-            "url": article_url
-        }
-        
-    except HTTPException:
-        raise
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error removing manual article {article_id}: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to remove article"
-        )
-
 @router.post("/process-batch")
 async def process_manual_articles_batch(
     request: ProcessBatchRequest,
@@ -319,4 +212,111 @@ async def process_manual_articles_batch(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Batch processing failed: {str(e)}"
+        )
+
+@router.post("/{article_id}")
+async def update_article_content(
+    article_id: int,
+    request: UpdateContentRequest,
+    db: Session = Depends(get_db)
+):
+    """
+    Save the pasted text content for a specific article
+    
+    Args:
+        article_id: ID of the article to update
+        request: Request containing the article content
+        
+    Returns:
+        Success message with updated article info
+    """
+    try:
+        # Find the article
+        article = db.query(ManualInputArticle).filter(
+            ManualInputArticle.id == article_id
+        ).first()
+        
+        if not article:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Manual article with ID {article_id} not found"
+            )
+        
+        # Update the content
+        article.article_content = request.article_content.strip()
+        db.commit()
+        db.refresh(article)
+        
+        logger.info(f"Updated content for manual article {article_id} ({article.url})")
+        
+        return {
+            "success": True,
+            "message": "Article content updated successfully",
+            "id": article.id,
+            "url": article.url,
+            "content_length": len(article.article_content) if article.article_content else 0,
+            "has_content": bool(article.article_content and article.article_content.strip())
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating article content for {article_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to update article content"
+        )
+
+@router.delete("/{article_id}")
+async def remove_manual_article(
+    article_id: int,
+    db: Session = Depends(get_db)
+):
+    """
+    Remove an article from the manual queue
+    
+    Args:
+        article_id: ID of the article to remove
+        
+    Returns:
+        Success message
+    """
+    try:
+        # Find the article
+        article = db.query(ManualInputArticle).filter(
+            ManualInputArticle.id == article_id
+        ).first()
+        
+        if not article:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Manual article with ID {article_id} not found"
+            )
+        
+        # Store info for logging before deletion
+        article_url = article.url
+        article_submitter = article.submitted_by
+        
+        # Delete the article
+        db.delete(article)
+        db.commit()
+        
+        logger.info(f"Removed manual article {article_id} ({article_url}) submitted by {article_submitter}")
+        
+        return {
+            "success": True,
+            "message": "Article removed from manual queue",
+            "id": article_id,
+            "url": article_url
+        }
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error removing manual article {article_id}: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to remove article"
         )
