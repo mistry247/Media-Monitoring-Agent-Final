@@ -35,6 +35,7 @@ try:
     from fastapi import FastAPI
     from api import manual_articles
     from api.articles import router as articles_router
+    from api.reports import router as reports_router
     print("FastAPI and routers imported successfully.")
 except Exception as e:
     print(f"Error importing FastAPI or routers: {e}")
