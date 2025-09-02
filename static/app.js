@@ -1022,63 +1022,57 @@ class MediaMonitoringApp {
     /**
      * Handle process manual articles
      */
-    async handleProcessManualArticles() {
-        const recipientEmail = this.recipientEmailInput.value.trim();
-        
-        if (!recipientEmail) {
-            this.showManualArticlesFeedback('Please enter a recipient email address', 'error');
-            this.recipientEmailInput.focus();
-            return;
-        }
-        
+    async handleProcessManualArticles(event) {
+        const btn = event.currentTarget;
+        this.setButtonLoading(btn, true);
+        const feedbackEl = this.manualArticlesFeedback;
+        feedbackEl.textContent = '';
+        feedbackEl.className = 'feedback';
+
+        const recipientEmail = this.recipientEmailInput.value;
         if (!this.validateEmail(recipientEmail)) {
-            this.showManualArticlesFeedback('Please enter a valid email address', 'error');
-            this.recipientEmailInput.focus();
+            this.showFeedback(feedbackEl, 'Please enter a valid recipient email address.', 'error');
+            this.setButtonLoading(btn, false);
             return;
         }
-        
+
+        // CORRECTED LOGIC STARTS HERE
+        const articleElements = this.manualArticlesList.querySelectorAll('.manual-article');
+        const articlesPayload = Array.from(articleElements).map(el => {
+            const id = parseInt(el.dataset.id, 10);
+            const content = el.querySelector('textarea').value;
+            return { id, content };
+        }).filter(article => article.content && article.content.trim() !== ''); // Only include articles with content
+        // CORRECTED LOGIC ENDS HERE
+
+        if (articlesPayload.length === 0) {
+            this.showFeedback(feedbackEl, 'No manual articles with content to process.', 'warning');
+            this.setButtonLoading(btn, false);
+            return;
+        }
+
         try {
-            this.setProcessButtonLoading(true);
-            this.showManualArticlesFeedback('Processing manual articles...', 'info');
-            
-            const response = await fetch('/api/manual-articles/process-batch', {
+            const response = await this.fetchWithCsrf('/api/manual-articles/process-batch', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
                 body: JSON.stringify({
+                    articles: articlesPayload,
                     recipient_email: recipientEmail
-                })
+                }),
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-            }
-            
-            const result = await response.json();
-            
-            if (result.success) {
-                let message = result.message;
-                if (!result.email_sent) {
-                    message += ' (Note: Email sending failed)';
-                }
-                
-                this.showManualArticlesFeedback(message, 'success');
-                
-                // Refresh the manual articles list to remove processed articles
-                setTimeout(() => {
-                    this.refreshManualArticles();
-                }, 1000);
-                
+
+            if (response.ok) {
+                const result = await response.json();
+                this.showFeedback(feedbackEl, `Successfully started processing ${result.processed_count} manual articles. Report is being generated.`, 'success');
+                await this.fetchManualArticles(); // Refresh the list
             } else {
-                this.showManualArticlesFeedback(result.message || 'Processing failed', 'error');
+                const errorData = await response.json();
+                this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorData.detail || 'Unknown error'}`, 'error');
             }
-            
         } catch (error) {
             console.error('Error processing manual articles:', error);
-            this.showManualArticlesFeedback('Failed to process articles. Please try again.', 'error');
+            this.showFeedback(feedbackEl, 'An unexpected error occurred. Please check the console and try again.', 'error');
         } finally {
-            this.setProcessButtonLoading(false);
+            this.setButtonLoading(btn, false);
         }
     }
 
