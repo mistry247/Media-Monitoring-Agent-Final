@@ -120,7 +120,7 @@ def init_db():
         # It will NOT delete or alter existing tables.
         Base.metadata.create_all(bind=engine)
         logging.info("✅ Database tables checked/created successfully.")
-    except SQLAlchemyError as e:
+    except Exception as e:
         logging.error(f"❌ An error occurred during database initialization: {e}")
         raise e
 
