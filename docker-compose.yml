@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  media-monitoring:
+  media-monitoring-agent:
     build: .
     container_name: media-monitoring-agent
     ports:
@@ -10,6 +10,9 @@ services:
       - DATABASE_URL=sqlite:///data/media_monitoring.db
       - HOST=0.0.0.0
       - PORT=8000
+      - LOCAL_MODE=False
+      - GEMINI_API_KEY=AIzaSyC6-JoDkhAm1vpRlRVSkpbAu89GJ29ASrE
+      - DOCKER_CONTAINER=true
     env_file:
       - .env
     volumes:
@@ -34,10 +37,8 @@ services:
       - ./deployment/nginx.conf:/etc/nginx/nginx.conf:ro
       - ./deployment/ssl:/etc/nginx/ssl:ro
     depends_on:
-      - media-monitoring
+      - media-monitoring-agent
     restart: unless-stopped
-    profiles:
-      - with-nginx
 
 volumes:
   data:

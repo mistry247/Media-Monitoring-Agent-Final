@@ -1,45 +1,21 @@
-"""
-Pydantic models for article data validation and serialization
-"""
-from pydantic import BaseModel, validator
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean, func
 from datetime import datetime
-from typing import Optional
+from database import Base
 
-from utils.security import validate_and_sanitize_url, validate_and_sanitize_name
+class Article(Base):
+    __tablename__ = 'articles'
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, unique=True, index=True, nullable=False)
+    submitted_by = Column(String, nullable=False)
+    pasted_text = Column(Text, nullable=True)
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
 
-class ArticleSubmission(BaseModel):
-    """Model for article submission requests"""
-    url: str
-    submitted_by: str
+class ManualInputArticle(Base):
+    __tablename__ = 'manual_input_articles'
     
-    @validator('submitted_by')
-    def validate_submitted_by(cls, v):
-        # Use security utility for name validation
-        return validate_and_sanitize_name(v, max_length=100)
-    
-    @validator('url')
-    def validate_url(cls, v):
-        # Use security utility for URL validation and sanitization
-        return validate_and_sanitize_url(str(v))
-
-class Article(BaseModel):
-    """Model for article data"""
-    id: Optional[int] = None
-    url: str
-    pasted_text: Optional[str] = None
-    timestamp: datetime
-    submitted_by: str
-    
-    class Config:
-        from_attributes = True
-
-class ArticleResponse(BaseModel):
-    """Model for article API responses"""
-    success: bool
-    message: str
-    article: Optional[Article] = None
-
-class PendingArticlesResponse(BaseModel):
-    """Model for pending articles list response"""
-    articles: list[Article]
-    count: int
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, nullable=False, index=True)
+    submitted_by = Column(String, nullable=False)
+    submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    article_content = Column(Text, nullable=True)
+    has_content = Column(Boolean, default=False)

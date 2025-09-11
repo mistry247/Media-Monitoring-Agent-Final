@@ -10,7 +10,7 @@ import json
 
 from main import app
 from database import Base, get_db, PendingArticle, ProcessedArchive
-from models.article import ArticleSubmission
+from schemas import ArticleSubmission
 
 # Create test database
 SQLALCHEMY_DATABASE_URL = "sqlite:///./test_articles_api.db"

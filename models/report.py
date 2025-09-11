@@ -1,68 +1,35 @@
-"""
-Pydantic models for report data validation and serialization
-"""
-from pydantic import BaseModel, validator
-from typing import Optional
+from sqlalchemy import Column, Integer, String, Text, DateTime, Boolean
+from datetime import datetime
+from database import Base
 
-from utils.security import validate_and_sanitize_text
+class Report(Base):
+    """Model for generated reports"""
+    __tablename__ = 'reports'
+    
+    id = Column(Integer, primary_key=True, index=True)
+    report_type = Column(String, nullable=False)  # 'media' or 'hansard'
+    recipient_email = Column(String, nullable=False)
+    generated_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    status = Column(String, default='pending', nullable=False)  # 'pending', 'processing', 'completed', 'failed'
+    content = Column(Text, nullable=True)
+    error_message = Column(Text, nullable=True)
 
-class MediaReportRequest(BaseModel):
-    """Model for media report generation requests"""
-    pasted_content: str
-    recipient_email: str
+class HansardQuestion(Base):
+    """Model for Hansard questions"""
+    __tablename__ = 'hansard_questions'
     
-    @validator('pasted_content')
-    def validate_pasted_content(cls, v):
-        # Use security utility for text validation and sanitization
-        return validate_and_sanitize_text(v, max_length=100000)
-    
-    @validator('recipient_email')
-    def validate_recipient_email(cls, v):
-        # Basic email validation
-        import re
-        if not v or not v.strip():
-            raise ValueError('Recipient email is required')
-        
-        email = v.strip()
-        if len(email) > 254:
-            raise ValueError('Email address is too long')
-        
-        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-        if not re.match(email_regex, email):
-            raise ValueError('Invalid email address format')
-        
-        return email
+    id = Column(Integer, primary_key=True, index=True)
+    question_text = Column(Text, nullable=False)
+    category = Column(String, nullable=True)
+    timestamp = Column(DateTime, default=datetime.utcnow, nullable=False)
+    source_articles = Column(Text, nullable=True)  # JSON array of related article IDs
 
-class HansardReportRequest(BaseModel):
-    """Model for Hansard report generation requests"""
-    recipient_email: str
+class ProcessedArchive(Base):
+    """Model for processed articles archive"""
+    __tablename__ = 'processed_archive'
     
-    @validator('recipient_email')
-    def validate_recipient_email(cls, v):
-        # Basic email validation
-        import re
-        if not v or not v.strip():
-            raise ValueError('Recipient email is required')
-        
-        email = v.strip()
-        if len(email) > 254:
-            raise ValueError('Email address is too long')
-        
-        email_regex = r'^[^\s@]+@[^\s@]+\.[^\s@]+$'
-        if not re.match(email_regex, email):
-            raise ValueError('Invalid email address format')
-        
-        return email
-
-class ReportResponse(BaseModel):
-    """Model for report generation responses"""
-    success: bool
-    message: str
-    report_id: Optional[str] = None
-    
-class ReportStatus(BaseModel):
-    """Model for report status responses"""
-    report_id: str
-    status: str  # 'pending', 'processing', 'completed', 'failed'
-    message: str
-    progress: Optional[int] = None  # 0-100 percentage
+    id = Column(Integer, primary_key=True, index=True)
+    url = Column(String, nullable=False)
+    timestamp = Column(DateTime, nullable=False)
+    submitted_by = Column(String, nullable=False)
+    processed_date = Column(DateTime, default=datetime.utcnow, nullable=False)

@@ -11,7 +11,7 @@ from sqlalchemy.orm import sessionmaker
 from database import Base, PendingArticle, ProcessedArchive, HansardQuestion
 from services.report_service import ReportService, ReportGenerationError
 from services.ai_service import SummaryResult
-from models.article import Article
+from schemas import Article
 
 # Test database setup
 TEST_DATABASE_URL = "sqlite:///:memory:"

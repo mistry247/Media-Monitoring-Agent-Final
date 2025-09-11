@@ -11,15 +11,18 @@ import sys
 import logging
 from pathlib import Path
 from sqlalchemy.exc import SQLAlchemyError
+from sqlalchemy import text
 from database import engine, Base
+from config import settings
 
-# --- Import the modules containing your models ---
-# This step is crucial. Importing the modules ensures that any classes
-# that inherit from `Base` are registered with SQLAlchemy's metadata.
-logging.info("Importing all model files to register them with SQLAlchemy Base...")
-from models import article
-from models import report
-logging.info("Model files imported successfully.")
+# --- Import the models package to register all SQLAlchemy models ---
+# This step is crucial. Importing the models package ensures that all classes
+# that inherit from `Base` are registered with SQLAlchemy's metadata exactly once.
+# Configure logging
+logger = logging.getLogger(__name__)
+logger.info("Importing models package to register all SQLAlchemy models...")
+import models  # This triggers models/__init__.py which imports all model classes
+logger.info("Models package imported successfully.")
 # --- End of model imports ---
 
 def create_data_directory():
@@ -63,6 +66,11 @@ def initialize_database():
         existing_tables = check_existing_tables()
         if existing_tables:
             logger.info(f"Found existing tables: {existing_tables}")
+            # In Docker/non-interactive environments, skip recreation by default
+            if os.getenv('DOCKER_CONTAINER') or not sys.stdin.isatty():
+                logger.info("Running in non-interactive mode - skipping table recreation")
+                return True
+            
             response = input("Database tables already exist. Do you want to recreate them? (y/N): ")
             if response.lower() != 'y':
                 logger.info("Skipping database initialization")
@@ -75,7 +83,7 @@ def initialize_database():
         
         # Create all tables
         logger.info("Creating database tables...")
-        success = init_database()
+        success = init_db()
         
         if success:
             logger.info("✅ Database initialized successfully!")

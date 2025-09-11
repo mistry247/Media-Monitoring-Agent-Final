@@ -7,7 +7,7 @@ import os
 sys.path.insert(0, os.path.dirname(__file__))
 
 from database import get_db, PendingArticle
-from models.article import ArticleSubmission
+from schemas import ArticleSubmission
 from services.article_service import ArticleService
 
 def test_database():

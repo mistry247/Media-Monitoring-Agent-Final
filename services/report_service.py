@@ -350,15 +350,15 @@ class ReportService:
             article_ids: List of article IDs to move to manual processing
         """
         try:
-            from database import PendingArticle, ManualInputArticle
+            from models import Article, ManualInputArticle
             from datetime import datetime
             
             moved_count = 0
             
             for article_id in article_ids:
                 # Get the pending article
-                pending_article = self.db.query(PendingArticle).filter(
-                    PendingArticle.id == article_id
+                pending_article = self.db.query(Article).filter(
+                    Article.id == article_id
                 ).first()
                 
                 if not pending_article:

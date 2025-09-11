@@ -6,7 +6,7 @@ import sys
 import os
 sys.path.insert(0, os.path.dirname(__file__))
 
-from models.article import ArticleSubmission
+from schemas import ArticleSubmission
 
 def test_validation():
     print("Testing ArticleSubmission validation...")

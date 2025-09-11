@@ -5,8 +5,8 @@ import pytest
 from pydantic import ValidationError
 from datetime import datetime
 
-from models.article import ArticleSubmission, Article, ArticleResponse, PendingArticlesResponse
-from models.report import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
+from schemas import ArticleSubmission, Article, ArticleResponse, PendingArticlesResponse
+from schemas import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
 
 def test_article_submission_valid():
     """Test valid article submission"""

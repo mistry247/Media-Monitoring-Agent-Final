@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 from typing import List
 
 from database import get_db
-from models.article import ArticleSubmission, Article, ArticleResponse, PendingArticlesResponse
+from schemas import ArticleSubmission, Article, ArticleResponse, PendingArticlesResponse
 from services.article_service import ArticleService
 from utils.logging_config import get_logger, log_operation, log_error
 from utils.error_handlers import (
@@ -40,7 +40,7 @@ async def submit_article(
     start_time = time.time()
     
     try:
-        from database import PendingArticle, ManualInputArticle
+        from models import Article, ManualInputArticle
         from datetime import datetime
         from config import settings
         
@@ -81,7 +81,7 @@ async def submit_article(
             }
         else:
             # Route to pending articles table for automatic processing
-            new_article = PendingArticle(
+            new_article = Article(
                 url=submission.url,
                 submitted_by=submission.submitted_by,
                 timestamp=datetime.utcnow()
@@ -140,10 +140,10 @@ async def get_pending_articles(
         JSON response with list of pending articles
     """
     try:
-        from database import PendingArticle
+        from models import Article
         
         # Query all pending articles
-        pending_articles = db.query(PendingArticle).order_by(PendingArticle.timestamp.desc()).all()
+        pending_articles = db.query(Article).order_by(Article.timestamp.desc()).all()
         
         # Convert to list of dictionaries
         articles_list = []
@@ -194,8 +194,8 @@ async def process_article(
     
     try:
         # Get the pending article
-        from database import PendingArticle
-        article = db.query(PendingArticle).filter(PendingArticle.id == article_id).first()
+        from models import Article
+        article = db.query(Article).filter(Article.id == article_id).first()
         
         if not article:
             raise HTTPException(

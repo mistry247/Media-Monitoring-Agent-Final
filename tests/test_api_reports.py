@@ -9,7 +9,7 @@ import json
 
 from main import app
 from database import get_db
-from models.report import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
+from schemas import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
 
 # Create test client
 client = TestClient(app)

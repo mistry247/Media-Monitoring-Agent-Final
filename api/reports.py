@@ -10,7 +10,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy.orm import Session
 
 from database import get_db
-from models.report import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
+from schemas import MediaReportRequest, HansardReportRequest, ReportResponse, ReportStatus
 from services.report_service import get_report_service, ReportGenerationError
 from utils.logging_config import get_logger, log_operation, log_error
 from utils.error_handlers import (

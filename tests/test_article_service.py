@@ -8,7 +8,7 @@ from sqlalchemy.orm import sessionmaker
 
 from database import Base, PendingArticle, ProcessedArchive
 from services.article_service import ArticleService
-from models.article import ArticleSubmission
+from schemas import ArticleSubmission
 
 # Create test database engine (in-memory SQLite)
 TEST_DATABASE_URL = "sqlite:///:memory:"

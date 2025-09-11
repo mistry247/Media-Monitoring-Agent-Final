@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
 from datetime import datetime
 
-from database import PendingArticle, ProcessedArchive, get_db
-from models.article import ArticleSubmission, Article
+from database import get_db
+from models import Article, ManualInputArticle, ProcessedArchive
+from schemas import ArticleSubmission
 from utils.logging_config import get_logger, log_operation, log_error
 from utils.error_handlers import ArticleServiceError, DatabaseError
 
@@ -34,8 +35,8 @@ class ArticleService:
         
         try:
             # Check for duplicates in pending_articles table
-            existing_pending = self.db.query(PendingArticle).filter(
-                PendingArticle.url == submission.url
+            existing_pending = self.db.query(Article).filter(
+                Article.url == submission.url
             ).first()
             
             if existing_pending:
@@ -68,7 +69,7 @@ class ArticleService:
                 return False, "This article URL has already been processed", None
             
             # Create new pending article
-            new_article = PendingArticle(
+            new_article = Article(
                 url=submission.url,
                 submitted_by=submission.submitted_by,
                 timestamp=datetime.utcnow()
@@ -124,8 +125,8 @@ class ArticleService:
         start_time = time.time()
         
         try:
-            pending_articles = self.db.query(PendingArticle).order_by(
-                PendingArticle.timestamp.desc()
+            pending_articles = self.db.query(Article).order_by(
+                Article.timestamp.desc()
             ).all()
             
             # Convert to Pydantic models
@@ -168,8 +169,8 @@ class ArticleService:
             Article model or None if not found
         """
         try:
-            article = self.db.query(PendingArticle).filter(
-                PendingArticle.id == article_id
+            article = self.db.query(Article).filter(
+                Article.id == article_id
             ).first()
             
             if not article:
@@ -202,8 +203,8 @@ class ArticleService:
             
             for article_id in article_ids:
                 # Get the pending article
-                pending_article = self.db.query(PendingArticle).filter(
-                    PendingArticle.id == article_id
+                pending_article = self.db.query(Article).filter(
+                    Article.id == article_id
                 ).first()
                 
                 if not pending_article:
@@ -277,8 +278,8 @@ class ArticleService:
         """
         try:
             # Check pending articles
-            pending_exists = self.db.query(PendingArticle).filter(
-                PendingArticle.url == url
+            pending_exists = self.db.query(Article).filter(
+                Article.url == url
             ).first()
             
             if pending_exists:
