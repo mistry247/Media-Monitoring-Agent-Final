@@ -18,3 +18,4 @@ class ManualInputArticle(Base):
     submitted_by = Column(String, nullable=False)
     submitted_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     article_content = Column(Text, nullable=True)
+    has_content = Column(Boolean, default=False)
