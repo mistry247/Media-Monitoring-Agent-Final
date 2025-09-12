@@ -10,6 +10,7 @@ import google.generativeai as genai
 from google.generativeai.types import HarmCategory, HarmBlockThreshold
 
 from config import settings
+from ai_prompts import PROMPT_TEMPLATES, MODEL_CONFIGS
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -76,11 +77,14 @@ class GeminiAPIClient:
         self.rate_limiter.wait_if_needed()
         
         try:
+            # Get model-specific configuration
+            model_config = MODEL_CONFIGS.get(self.model_name, MODEL_CONFIGS["gemini-1.5-flash"])
+            
             # Configure generation parameters
             generation_config = genai.types.GenerationConfig(
                 max_output_tokens=max_tokens,
-                temperature=0.1,  # Lower temperature for more consistent summaries
-                top_p=0.8,
+                temperature=model_config["temperature"],
+                top_p=model_config["top_p"],
                 top_k=40
             )
             
@@ -136,13 +140,18 @@ class GeminiAPIClient:
         try:
             # Create appropriate prompt based on summary type
             if summary_type == "media":
-                prompt = self._create_media_summary_prompt(content, article_url)
+                system_message = PROMPT_TEMPLATES["article_summary"]["system"]
+                user_prompt = self._create_media_summary_prompt(content, article_url)
             elif summary_type == "hansard":
-                prompt = self._create_hansard_summary_prompt(content)
+                system_message = PROMPT_TEMPLATES["hansard_questions"]["system"]
+                user_prompt = self._create_hansard_summary_prompt(content)
             else:
-                prompt = f"Please provide a concise summary of the following content:\n\n{content}"
+                system_message = "You are a helpful AI assistant that provides concise summaries."
+                user_prompt = f"Please provide a concise summary of the following content:\n\n{content}"
             
-            response = self._make_request(prompt)
+            # Combine system message and user prompt
+            full_prompt = f"{system_message}\n\n{user_prompt}"
+            response = self._make_request(full_prompt)
             
             # Extract content from response
             if "content" in response and response["content"]:
@@ -176,53 +185,18 @@ class GeminiAPIClient:
             return SummaryResult(success=False, error=error_msg)
     
     def _create_media_summary_prompt(self, content: str, article_url: str = "") -> str:
-        """Create a prompt for media article summarization"""
-        return f"""ROLE
-You are a highly skilled Senior Media Analyst and Editor, specializing in producing concise, formal, and neutral summaries of news articles for executive briefings. Your writing must be objective, information-dense, and adhere to a strict, professional format.
-
-INPUTS YOU WILL RECEIVE
-Article URL: The full URL of the original news story.
-Article Text: The cleaned text content of that news story.
-
-TASK & FORMATTING RULES
-Your goal is to produce a single, perfectly formatted paragraph that summarizes the provided article. You must follow these steps precisely:
-
-Analyze the Article URL to infer the common name of the news organization (e.g., from www.theguardian.com you should infer The Guardian). If the URL is 'Pasted Article', infer the source from the text content or state 'A provided text'.
-
-Write a Summary:
-Your summary must be a concise and neutral distillation of the key points from the Article Text.
-Content Focus: Prioritize the "Five Ws" (Who, What, When, Where, Why). Identify the main subjects (people, organizations), the core event or issue, and the key outcomes or implications.
-Include Key Details: If the article contains important data, statistics, or financial figures, include them in your summary to provide context and weight.
-Tone and Style: Maintain a consistently formal, objective, and impartial tone. Avoid any informal language, slang, or personal opinions. Use sophisticated, professional vocabulary appropriate for a corporate or political audience.
-
-Construct Your Response:
-The entire response must be a single paragraph wrapped in <p>...</p> tags.
-The response MUST begin with a hyperlink to the news organization. The link text should be the source's common name.
-The hyperlink must be immediately followed by the word "reports" (e.g., The Guardian reports...).
-The rest of the paragraph is your summary.
-The required format is exactly: <a href="[Article URL]">[Source Name]</a> reports [your summary text here].
-
-OUTPUT EXAMPLES (Your summary must be formatted and written exactly like these examples)
-
-YOUR ASSIGNMENT
-Now, process the following inputs based on all the rules and examples above. Respond with only the single, complete <p>...</p> HTML block.
-
-Article URL: {article_url}
-Article Text: {content}
-
-SPECIAL RULE: If the article URL is from any BBC domain (bbc.com, bbc.co.uk, or their subdomains), always use 'BBC News' as the source name in the hyperlink, regardless of what the URL or article text says.
-
-IMPORTANT: In your output, always use the actual Article URL provided in the input for the hyperlink. Never use a placeholder, example, or the literal text '[Article URL]'."""
+        """Create a prompt for media article summarization using configuration"""
+        template = PROMPT_TEMPLATES["article_summary"]
+        return template["user_template"].format(
+            title="Article Analysis",
+            url=article_url,
+            content=content
+        )
     
     def _create_hansard_summary_prompt(self, content: str) -> str:
-        """Create a prompt for Hansard-style parliamentary questions"""
-        return f"""Based on the following media content, generate potential parliamentary questions that could be asked in the style of Hansard records. 
-Focus on accountability, policy clarification, and matters of public interest that would be appropriate for parliamentary inquiry.
-
-Content to analyze:
-{content}
-
-Please provide 2-3 well-structured parliamentary questions that could arise from this content, formatted appropriately for Hansard records."""
+        """Create a prompt for Hansard-style parliamentary questions using configuration"""
+        template = PROMPT_TEMPLATES["hansard_questions"]
+        return template["user_template"].format(media_content=content)
 
 class AIService:
     """Service class for AI operations"""
