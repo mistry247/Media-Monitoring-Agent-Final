@@ -30,6 +30,14 @@ class MediaMonitoringApp {
         this.processManualArticlesButton = document.getElementById('process-manual-articles');
         this.manualArticlesFeedback = document.getElementById('manual-articles-feedback');
         
+        // Debug: Check if processManualArticlesButton was found
+        console.log('🔍 Constructor: processManualArticlesButton element:', this.processManualArticlesButton);
+        if (!this.processManualArticlesButton) {
+            console.error('❌ Constructor: processManualArticlesButton not found! Available elements with similar IDs:');
+            console.log('Available elements:', document.querySelectorAll('[id*="process"]'));
+            console.log('Available elements:', document.querySelectorAll('[id*="manual"]'));
+        }
+        
         // Dashboard state
         this.refreshInterval = null;
         this.autoRefreshEnabled = true;
@@ -94,7 +102,13 @@ class MediaMonitoringApp {
         // Manual articles events
         this.refreshManualArticlesButton.addEventListener('click', () => this.refreshManualArticles());
         // CHANGE BELOW: pass event to handler
-        this.processManualArticlesButton.addEventListener('click', (event) => this.handleProcessManualArticles(event));
+        console.log('🔍 bindEvents: processManualArticlesButton element:', this.processManualArticlesButton);
+        if (this.processManualArticlesButton) {
+            this.processManualArticlesButton.addEventListener('click', (event) => this.handleProcessManualArticles(event));
+            console.log('✅ bindEvents: Event listener attached to processManualArticlesButton');
+        } else {
+            console.error('❌ bindEvents: processManualArticlesButton not found!');
+        }
         
         // Validate recipient email
         this.recipientEmailInput.addEventListener('blur', () => this.validateRecipientEmail());
