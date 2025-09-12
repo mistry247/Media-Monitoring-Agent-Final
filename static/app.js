@@ -1110,7 +1110,7 @@ class MediaMonitoringApp {
             if (response.ok) {
                 const result = await response.json();
                 this.showFeedback(feedbackEl, `Successfully started processing. Job ID: ${result.job_id}`, 'success');
-                await this.fetchManualArticles(); // Refresh the list
+                await this.refreshManualArticles(); // Refresh the list
             } else {
                 const errorData = await response.json();
                 this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorData.detail || 'Unknown error'}`, 'error');
