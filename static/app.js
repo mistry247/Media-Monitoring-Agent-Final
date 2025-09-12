@@ -1060,7 +1060,7 @@ class MediaMonitoringApp {
         console.log('✅ handleProcessManualArticles: Email validation passed');
 
         // CORRECTED LOGIC STARTS HERE
-        const articleElements = this.manualArticlesList.querySelectorAll('.manual-article');
+        const articleElements = this.manualArticlesList.querySelectorAll('.manual-article-item');
         console.log('🔍 handleProcessManualArticles: Found article elements:', articleElements.length);
         console.log('🔍 handleProcessManualArticles: Article elements:', articleElements);
         

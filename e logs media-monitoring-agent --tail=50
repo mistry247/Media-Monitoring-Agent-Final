@@ -1,0 +1,5 @@
+[33medbc695[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m)[m Sync: Apply production fixes to local codebase
+[33m689e69f[m Final Fix: Add static volume mount for Nginx
+[33mf2dd820[m Final Fix: Correct production Nginx configuration
+[33m9316242[m Security: Remove exposed API key from compose file
+[33me7509b4[m Final Build: Resolve all startup issues and complete refactor
