@@ -1089,33 +1089,36 @@ class MediaMonitoringApp {
         });
 
         try {
-            const response = await this.fetchWithCsrf('/api/manual-articles/process-batch', {
+            console.log("--- 6. Found articles to process. Sending to server... ---");
+
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            if (this.csrfToken) {
+                headers['X-CSRF-Token'] = this.csrfToken;
+            }
+
+            const response = await fetch('/api/manual-articles/process-batch', {
                 method: 'POST',
+                headers: headers,
                 body: JSON.stringify({
                     articles: articlesPayload,
                     recipient_email: recipientEmail
                 }),
             });
 
-            console.log('🔍 handleProcessManualArticles: Fetch response received:', response);
-            console.log('🔍 handleProcessManualArticles: Response status:', response.status);
-            console.log('🔍 handleProcessManualArticles: Response ok:', response.ok);
-
             if (response.ok) {
                 const result = await response.json();
-                console.log('✅ handleProcessManualArticles: Success response:', result);
-                this.showFeedback(feedbackEl, `Successfully started processing ${result.processed_count} manual articles. Report is being generated.`, 'success');
+                this.showFeedback(feedbackEl, `Successfully started processing. Job ID: ${result.job_id}`, 'success');
                 await this.fetchManualArticles(); // Refresh the list
             } else {
                 const errorData = await response.json();
-                console.log('❌ handleProcessManualArticles: Error response:', errorData);
                 this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorData.detail || 'Unknown error'}`, 'error');
             }
         } catch (error) {
-            console.error('❌ handleProcessManualArticles: Exception caught:', error);
+            console.error('Error processing manual articles:', error);
             this.showFeedback(feedbackEl, 'An unexpected error occurred. Please check the console and try again.', 'error');
         } finally {
-            console.log('🔍 handleProcessManualArticles: Finally block - stopping button loading');
             this.setButtonLoading(btn, false);
         }
     }
