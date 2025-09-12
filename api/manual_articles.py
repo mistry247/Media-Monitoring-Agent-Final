@@ -12,6 +12,8 @@ from datetime import datetime
 from database import get_db, ManualInputArticle
 from services.ai_service import get_ai_service
 from services.email_service import EmailService
+from services.article_service import ArticleService
+from services.report_service import ReportService
 from config import settings
 from utils.logging_config import get_logger
 from schemas import ManualArticleBatchPayload
@@ -52,13 +54,16 @@ async def get_manual_articles(db: Session = Depends(get_db)):
         
         articles_response = []
         for article in manual_articles:
+            # Calculate has_content dynamically since the database column might not exist
+            has_content = bool(article.article_content and article.article_content.strip())
+            
             articles_response.append(ManualArticleResponse(
                 id=article.id,
                 url=article.url,
                 submitted_by=article.submitted_by,
                 submitted_at=article.submitted_at.isoformat(),
                 article_content=article.article_content or "",
-                has_content=bool(article.article_content and article.article_content.strip())
+                has_content=has_content
             ))
         
         logger.info(f"Retrieved {len(articles_response)} manual articles")
@@ -91,7 +96,8 @@ async def process_manual_articles_batch(
     print(f"--- Recipient Email: {payload.recipient_email} ---")
     print(f"--- Received {len(payload.articles)} articles in payload. ---")
 
-    updated_ids = await article_service.update_manual_articles_content(db, payload.articles)
+    article_service = ArticleService(db)
+    updated_ids = await article_service.update_manual_articles_content(payload.articles)
 
     print(f"--- 2. Updated content for {len(updated_ids)} articles in the database. ---")
 
@@ -103,9 +109,9 @@ async def process_manual_articles_batch(
 
     print(f"--- 3. Starting background task with Job ID: {job_id} ---")
 
+    report_service = ReportService(db)
     background_tasks.add_task(
         report_service.generate_manual_report,
-        db_session=db,
         article_ids=updated_ids,
         recipient_email=payload.recipient_email,
         job_id=job_id
