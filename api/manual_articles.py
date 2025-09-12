@@ -99,7 +99,8 @@ async def process_manual_articles_batch(
         report_service_instance.generate_manual_report,
         article_ids=updated_ids,
         recipient_email=payload.recipient_email,
-        job_id=job_id
+        job_id=job_id,
+        db=db
     )
     
     logger.info(f"Queued background task {job_id} to process {len(updated_ids)} manual articles.")

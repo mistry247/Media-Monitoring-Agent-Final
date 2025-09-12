@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from database import get_db, HansardQuestion, ManualInputArticle
 from services.article_service import get_article_service
 from services.scraping_service import scraping_service
-from services.ai_service import get_ai_service
+from services.ai_service import get_ai_service, AIService
 from services.email_service import email_service, EmailService
 from config import settings
 
@@ -388,97 +388,57 @@ class ReportService:
             logger.error(f"Error moving articles to manual processing: {e}")
             raise
 
-    def generate_manual_report(self, article_ids: List[int], recipient_email: str = None, job_id: str = None) -> Tuple[bool, str, Optional[str]]:
+    def generate_manual_report(self, article_ids: List[int], recipient_email: str, job_id: str, db: Session):
         """
-        Generate a report from manually processed articles
-        
-        Args:
-            article_ids: List of manual article IDs to process
-            recipient_email: Email address to send the report to
-            job_id: Optional job ID for tracking
-            
-        Returns:
-            Tuple of (success: bool, message: str, report_id: Optional[str])
+        Generates a report for manual articles and sends it via the n8n webhook EmailService.
         """
-        report_id = job_id or f"manual_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        logger.info(f"[{job_id}] Starting manual report generation for {len(article_ids)} articles.")
         
         try:
-            logger.info(f"Starting manual report generation: {report_id}")
-            
-            # Get manual articles with content
-            manual_articles = self.db.query(ManualInputArticle).filter(
-                ManualInputArticle.id.in_(article_ids),
-                ManualInputArticle.article_content.isnot(None),
-                ManualInputArticle.article_content != ""
-            ).all()
-            
-            if not manual_articles:
-                return False, "No manual articles with content found", None
-            
-            logger.info(f"Found {len(manual_articles)} manual articles with content")
-            
-            # Prepare content for AI processing
-            articles_content = []
-            for article in manual_articles:
-                articles_content.append({
-                    'id': article.id,
-                    'url': article.url,
-                    'content': article.article_content,
-                    'submitted_by': article.submitted_by,
-                    'submitted_at': article.submitted_at
-                })
-            
-            # Generate AI summary
-            ai_service = get_ai_service()
-            summary_result = ai_service.generate_summary(articles_content)
-            
-            if not summary_result['success']:
-                return False, f"AI summary generation failed: {summary_result['error']}", None
-            
-            # Create report content
-            report_content = f"""
-# Manual Media Monitoring Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}
+            articles = db.query(ManualInputArticle).filter(ManualInputArticle.id.in_(article_ids)).all()
+            if not articles:
+                logger.warning(f"[{job_id}] No articles found for the given IDs. Aborting report.")
+                return
 
-## Summary
-{summary_result['summary']}
-
-## Articles Processed
-"""
+            # Correctly instantiate the AIService with settings
+            ai_service = AIService(api_key=settings.GEMINI_API_KEY, model_name=settings.GEMINI_MODEL)
             
-            for article in articles_content:
-                report_content += f"""
-### Article {article['id']}: {article['url']}
-**Submitted by:** {article['submitted_by']}  
-**Submitted at:** {article['submitted_at']}
+            email_service = EmailService()
 
-{article['content'][:500]}{'...' if len(article['content']) > 500 else ''}
-
----
-"""
-            
-            # Send email if recipient provided
-            if recipient_email:
-                email_service = EmailService()
-                email_sent = email_service.send_report_email(
-                    recipient_email, 
-                    f"Manual Media Report - {datetime.now().strftime('%Y-%m-%d')}",
-                    report_content
-                )
+            summaries = []
+            for article in articles:
+                logger.info(f"[{job_id}] Generating summary for article ID {article.id}...")
                 
-                if email_sent:
-                    logger.info(f"Manual report email sent to {recipient_email}")
+                summary_success, summary_content, _ = ai_service.summarize_article(
+                    title=f"Manual Input: {article.url}",
+                    content=article.article_content,
+                    url=article.url
+                )
+
+                if summary_success:
+                    summaries.append({
+                        'title': f"Summary for: {article.url}",
+                        'summary': summary_content,
+                        'url': article.url,
+                        'submitted_by': article.submitted_by
+                    })
                 else:
-                    logger.warning(f"Failed to send manual report email to {recipient_email}")
+                    summaries.append({
+                        'title': f"Summary for: {article.url}",
+                        'summary': "Could not generate AI summary for this article.",
+                        'url': article.url,
+                        'submitted_by': article.submitted_by
+                    })
+
+            report_html = email_service.format_html_report(summaries, "Manual Articles Report")
+            subject = f"Media Monitoring Report: {job_id}"
             
-            # Archive the processed articles
-            self._move_articles_to_manual_processing(article_ids)
+            email_service.send_report(html_content=report_html, recipients=[recipient_email], subject=subject)
             
-            logger.info(f"Manual report generation completed: {report_id}")
-            return True, f"Manual report generated successfully with {len(manual_articles)} articles", report_id
-            
+            logger.info(f"[{job_id}] Successfully triggered n8n webhook for report to {recipient_email}.")
+
         except Exception as e:
-            logger.error(f"Error generating manual report: {str(e)}")
-            return False, f"Manual report generation failed: {str(e)}", None
+            logger.error(f"[{job_id}] An error occurred during manual report generation: {e}", exc_info=True)
 
 def get_report_service(db: Session = None) -> ReportService:
     """
