@@ -9,7 +9,7 @@ from datetime import datetime
 
 from database import get_db
 from models import Article, ManualInputArticle, ProcessedArchive
-from schemas import ArticleSubmission
+from schemas import ArticleSubmission, ManualArticleUpdate
 from utils.logging_config import get_logger, log_operation, log_error
 from utils.error_handlers import ArticleServiceError, DatabaseError
 
@@ -299,51 +299,39 @@ class ArticleService:
             logger.error(f"Error checking URL duplicate: {e}")
             return False, "error"
 
-async def update_manual_articles_content(db: Session, articles: List[dict]) -> List[int]:
+async def update_manual_articles_content(db: Session, articles: List[ManualArticleUpdate]) -> List[int]:
     """
-    Update content for a batch of manual articles
-    
-    Args:
-        db: Database session
-        articles: List of article dictionaries with 'id' and 'content' keys
-        
-    Returns:
-        List of updated article IDs
+    Updates the content of manual articles in the database.
     """
+    if not articles:
+        return []
+
     updated_ids = []
+    # Create a dictionary for efficient lookups
+    article_map = {article.id: article.content for article in articles}
     
-    try:
-        for article_data in articles:
-            article_id = article_data.get('id')
-            content = article_data.get('content', '')
+    # Find the database objects that need updating
+    db_articles_to_update = db.query(ManualInputArticle).filter(ManualInputArticle.id.in_(article_map.keys())).all()
+
+    for db_article in db_articles_to_update:
+        # Get the new content from the map using the DB object's ID
+        new_content = article_map.get(db_article.id)
+        if new_content:
+            db_article.article_content = new_content
+            db_article.has_content = True
+            updated_ids.append(db_article.id)
+            logger.info(f"Prepared update for manual article ID: {db_article.id}")
+
+    if updated_ids:
+        try:
+            db.commit()
+            logger.info(f"Committed content updates for {len(updated_ids)} manual articles.")
+        except Exception as e:
+            db.rollback()
+            logger.error(f"Failed to commit manual article updates: {e}", exc_info=True)
+            raise
             
-            if not article_id:
-                logger.warning(f"Skipping article with missing ID: {article_data}")
-                continue
-            
-            # Find the manual article
-            manual_article = db.query(ManualInputArticle).filter(
-                ManualInputArticle.id == article_id
-            ).first()
-            
-            if not manual_article:
-                logger.warning(f"Manual article {article_id} not found")
-                continue
-            
-            # Update the content
-            manual_article.article_content = content.strip()
-            updated_ids.append(article_id)
-            
-            logger.info(f"Updated content for manual article {article_id}")
-        
-        db.commit()
-        logger.info(f"Successfully updated {len(updated_ids)} manual articles")
-        return updated_ids
-        
-    except Exception as e:
-        db.rollback()
-        logger.error(f"Error updating manual articles content: {e}")
-        raise
+    return updated_ids
 
 def get_article_service(db: Session = None) -> ArticleService:
     """
