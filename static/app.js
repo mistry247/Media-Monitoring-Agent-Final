@@ -1024,33 +1024,55 @@ class MediaMonitoringApp {
      * Handle process manual articles
      */
     async handleProcessManualArticles(event) {
+        console.log('🔍 handleProcessManualArticles: Function started');
+        
         const btn = event.currentTarget;
+        console.log('🔍 handleProcessManualArticles: Button element found:', btn);
+        
         this.setButtonLoading(btn, true);
         const feedbackEl = this.manualArticlesFeedback;
         feedbackEl.textContent = '';
         feedbackEl.className = 'feedback';
 
         const recipientEmail = this.recipientEmailInput.value;
+        console.log('🔍 handleProcessManualArticles: Recipient email found:', recipientEmail);
+        
         if (!this.validateEmail(recipientEmail)) {
+            console.log('❌ handleProcessManualArticles: Email validation failed for:', recipientEmail);
             this.showFeedback(feedbackEl, 'Please enter a valid recipient email address.', 'error');
             this.setButtonLoading(btn, false);
             return;
         }
+        console.log('✅ handleProcessManualArticles: Email validation passed');
 
         // CORRECTED LOGIC STARTS HERE
         const articleElements = this.manualArticlesList.querySelectorAll('.manual-article');
+        console.log('🔍 handleProcessManualArticles: Found article elements:', articleElements.length);
+        console.log('🔍 handleProcessManualArticles: Article elements:', articleElements);
+        
         const articlesPayload = Array.from(articleElements).map(el => {
             const id = parseInt(el.dataset.id, 10);
             const content = el.querySelector('textarea').value;
+            console.log(`🔍 handleProcessManualArticles: Processing article ID ${id}, content length: ${content ? content.length : 0}`);
             return { id, content };
         }).filter(article => article.content && article.content.trim() !== ''); // Only include articles with content
         // CORRECTED LOGIC ENDS HERE
 
+        console.log('🔍 handleProcessManualArticles: Articles after filtering for content:', articlesPayload.length);
+        console.log('🔍 handleProcessManualArticles: Filtered articles payload:', articlesPayload);
+
         if (articlesPayload.length === 0) {
+            console.log('⚠️ handleProcessManualArticles: No articles with content found');
             this.showFeedback(feedbackEl, 'No manual articles with content to process.', 'warning');
             this.setButtonLoading(btn, false);
             return;
         }
+
+        console.log('🔍 handleProcessManualArticles: About to send fetch request to /api/manual-articles/process-batch');
+        console.log('🔍 handleProcessManualArticles: Request payload:', {
+            articles: articlesPayload,
+            recipient_email: recipientEmail
+        });
 
         try {
             const response = await this.fetchWithCsrf('/api/manual-articles/process-batch', {
@@ -1061,18 +1083,25 @@ class MediaMonitoringApp {
                 }),
             });
 
+            console.log('🔍 handleProcessManualArticles: Fetch response received:', response);
+            console.log('🔍 handleProcessManualArticles: Response status:', response.status);
+            console.log('🔍 handleProcessManualArticles: Response ok:', response.ok);
+
             if (response.ok) {
                 const result = await response.json();
+                console.log('✅ handleProcessManualArticles: Success response:', result);
                 this.showFeedback(feedbackEl, `Successfully started processing ${result.processed_count} manual articles. Report is being generated.`, 'success');
                 await this.fetchManualArticles(); // Refresh the list
             } else {
                 const errorData = await response.json();
+                console.log('❌ handleProcessManualArticles: Error response:', errorData);
                 this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorData.detail || 'Unknown error'}`, 'error');
             }
         } catch (error) {
-            console.error('Error processing manual articles:', error);
+            console.error('❌ handleProcessManualArticles: Exception caught:', error);
             this.showFeedback(feedbackEl, 'An unexpected error occurred. Please check the console and try again.', 'error');
         } finally {
+            console.log('🔍 handleProcessManualArticles: Finally block - stopping button loading');
             this.setButtonLoading(btn, false);
         }
     }
