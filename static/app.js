@@ -876,7 +876,7 @@ class MediaMonitoringApp {
     createManualArticleElement(article) {
         const div = document.createElement('div');
         div.className = 'manual-article-item';
-        div.dataset.articleId = article.id;
+        div.dataset.id = article.id;
         
         const submittedDate = new Date(article.submitted_at).toLocaleString();
         
