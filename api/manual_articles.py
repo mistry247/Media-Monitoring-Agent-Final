@@ -86,7 +86,6 @@ async def process_manual_articles_batch(
     """
     Updates content for a batch of articles and triggers report generation.
     """
-    # This now correctly calls the standalone function from the service module
     updated_ids = await update_manual_articles_content(db, payload.articles)
 
     if not updated_ids:
@@ -94,13 +93,13 @@ async def process_manual_articles_batch(
 
     job_id = f"manual_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
     
-    report_service = ReportService(db)
+    # Create ReportService instance and call the method
+    report_service_instance = ReportService(db)
     background_tasks.add_task(
-        report_service.generate_manual_report,
+        report_service_instance.generate_manual_report,
         article_ids=updated_ids,
         recipient_email=payload.recipient_email,
-        job_id=job_id,
-        db=db
+        job_id=job_id
     )
     
     logger.info(f"Queued background task {job_id} to process {len(updated_ids)} manual articles.")

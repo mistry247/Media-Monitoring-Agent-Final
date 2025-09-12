@@ -8,11 +8,11 @@ from typing import List, Dict, Any, Tuple, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
 
-from database import get_db, HansardQuestion
+from database import get_db, HansardQuestion, ManualInputArticle
 from services.article_service import get_article_service
 from services.scraping_service import scraping_service
 from services.ai_service import get_ai_service
-from services.email_service import email_service
+from services.email_service import email_service, EmailService
 from config import settings
 
 logger = logging.getLogger(__name__)
@@ -387,6 +387,98 @@ class ReportService:
             self.db.rollback()
             logger.error(f"Error moving articles to manual processing: {e}")
             raise
+
+    def generate_manual_report(self, article_ids: List[int], recipient_email: str = None, job_id: str = None) -> Tuple[bool, str, Optional[str]]:
+        """
+        Generate a report from manually processed articles
+        
+        Args:
+            article_ids: List of manual article IDs to process
+            recipient_email: Email address to send the report to
+            job_id: Optional job ID for tracking
+            
+        Returns:
+            Tuple of (success: bool, message: str, report_id: Optional[str])
+        """
+        report_id = job_id or f"manual_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+        
+        try:
+            logger.info(f"Starting manual report generation: {report_id}")
+            
+            # Get manual articles with content
+            manual_articles = self.db.query(ManualInputArticle).filter(
+                ManualInputArticle.id.in_(article_ids),
+                ManualInputArticle.article_content.isnot(None),
+                ManualInputArticle.article_content != ""
+            ).all()
+            
+            if not manual_articles:
+                return False, "No manual articles with content found", None
+            
+            logger.info(f"Found {len(manual_articles)} manual articles with content")
+            
+            # Prepare content for AI processing
+            articles_content = []
+            for article in manual_articles:
+                articles_content.append({
+                    'id': article.id,
+                    'url': article.url,
+                    'content': article.article_content,
+                    'submitted_by': article.submitted_by,
+                    'submitted_at': article.submitted_at
+                })
+            
+            # Generate AI summary
+            ai_service = get_ai_service()
+            summary_result = ai_service.generate_summary(articles_content)
+            
+            if not summary_result['success']:
+                return False, f"AI summary generation failed: {summary_result['error']}", None
+            
+            # Create report content
+            report_content = f"""
+# Manual Media Monitoring Report - {datetime.now().strftime('%Y-%m-%d %H:%M')}
+
+## Summary
+{summary_result['summary']}
+
+## Articles Processed
+"""
+            
+            for article in articles_content:
+                report_content += f"""
+### Article {article['id']}: {article['url']}
+**Submitted by:** {article['submitted_by']}  
+**Submitted at:** {article['submitted_at']}
+
+{article['content'][:500]}{'...' if len(article['content']) > 500 else ''}
+
+---
+"""
+            
+            # Send email if recipient provided
+            if recipient_email:
+                email_service = EmailService()
+                email_sent = email_service.send_report_email(
+                    recipient_email, 
+                    f"Manual Media Report - {datetime.now().strftime('%Y-%m-%d')}",
+                    report_content
+                )
+                
+                if email_sent:
+                    logger.info(f"Manual report email sent to {recipient_email}")
+                else:
+                    logger.warning(f"Failed to send manual report email to {recipient_email}")
+            
+            # Archive the processed articles
+            self._move_articles_to_manual_processing(article_ids)
+            
+            logger.info(f"Manual report generation completed: {report_id}")
+            return True, f"Manual report generated successfully with {len(manual_articles)} articles", report_id
+            
+        except Exception as e:
+            logger.error(f"Error generating manual report: {str(e)}")
+            return False, f"Manual report generation failed: {str(e)}", None
 
 def get_report_service(db: Session = None) -> ReportService:
     """
