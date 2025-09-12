@@ -299,6 +299,52 @@ class ArticleService:
             logger.error(f"Error checking URL duplicate: {e}")
             return False, "error"
 
+async def update_manual_articles_content(db: Session, articles: List[dict]) -> List[int]:
+    """
+    Update content for a batch of manual articles
+    
+    Args:
+        db: Database session
+        articles: List of article dictionaries with 'id' and 'content' keys
+        
+    Returns:
+        List of updated article IDs
+    """
+    updated_ids = []
+    
+    try:
+        for article_data in articles:
+            article_id = article_data.get('id')
+            content = article_data.get('content', '')
+            
+            if not article_id:
+                logger.warning(f"Skipping article with missing ID: {article_data}")
+                continue
+            
+            # Find the manual article
+            manual_article = db.query(ManualInputArticle).filter(
+                ManualInputArticle.id == article_id
+            ).first()
+            
+            if not manual_article:
+                logger.warning(f"Manual article {article_id} not found")
+                continue
+            
+            # Update the content
+            manual_article.article_content = content.strip()
+            updated_ids.append(article_id)
+            
+            logger.info(f"Updated content for manual article {article_id}")
+        
+        db.commit()
+        logger.info(f"Successfully updated {len(updated_ids)} manual articles")
+        return updated_ids
+        
+    except Exception as e:
+        db.rollback()
+        logger.error(f"Error updating manual articles content: {e}")
+        raise
+
 def get_article_service(db: Session = None) -> ArticleService:
     """
     Factory function to get ArticleService instance

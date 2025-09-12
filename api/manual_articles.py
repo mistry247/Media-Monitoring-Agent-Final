@@ -12,7 +12,7 @@ from datetime import datetime
 from database import get_db, ManualInputArticle
 from services.ai_service import get_ai_service
 from services.email_service import EmailService
-from services.article_service import ArticleService
+from services.article_service import ArticleService, update_manual_articles_content
 from services.report_service import ReportService
 from config import settings
 from utils.logging_config import get_logger
@@ -77,49 +77,34 @@ async def get_manual_articles(db: Session = Depends(get_db)):
             detail="Failed to retrieve manual articles"
         )
 
-@router.post("/process-batch", status_code=202, response_model=dict)
+@router.post("/process-batch", status_code=status.HTTP_202_ACCEPTED)
 async def process_manual_articles_batch(
     payload: ManualArticleBatchPayload,
     background_tasks: BackgroundTasks,
     db: Session = Depends(get_db)
 ):
     """
-    Trigger AI processing for all manual articles that have content
-    
-    Args:
-        request: Request containing recipient email
-        
-    Returns:
-        Processing results and report information
+    Updates content for a batch of articles and triggers report generation.
     """
-    print("--- 1. Received request to process manual articles batch ---")
-    print(f"--- Recipient Email: {payload.recipient_email} ---")
-    print(f"--- Received {len(payload.articles)} articles in payload. ---")
-
-    article_service = ArticleService(db)
-    updated_ids = await article_service.update_manual_articles_content(payload.articles)
-
-    print(f"--- 2. Updated content for {len(updated_ids)} articles in the database. ---")
+    # This now correctly calls the standalone function from the service module
+    updated_ids = await update_manual_articles_content(db, payload.articles)
 
     if not updated_ids:
-        print("--- ERROR: No articles were updated. Exiting. ---")
-        raise HTTPException(status_code=400, detail="No articles were updated or found.")
+        raise HTTPException(status_code=400, detail="No articles were found or updated.")
 
     job_id = f"manual_report_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}"
-
-    print(f"--- 3. Starting background task with Job ID: {job_id} ---")
-
+    
     report_service = ReportService(db)
     background_tasks.add_task(
         report_service.generate_manual_report,
         article_ids=updated_ids,
         recipient_email=payload.recipient_email,
-        job_id=job_id
+        job_id=job_id,
+        db=db
     )
-
-    print(f"--- 4. Background task for Job ID: {job_id} has been queued. ---")
-
-    return {"message": "Manual article processing has been started.", "job_id": job_id}
+    
+    logger.info(f"Queued background task {job_id} to process {len(updated_ids)} manual articles.")
+    return {"message": "Manual article processing has been started.", "job_id": job_id, "processed_ids": updated_ids}
 
 @router.post("/{article_id}")
 async def update_article_content(
