@@ -1,31 +1,14 @@
-version: '3.8'
-
 services:
   media-monitoring-agent:
     build: .
     container_name: media-monitoring-agent
-    ports:
-      - "8000:8000"
-    environment:
-      - DATABASE_URL=sqlite:///data/media_monitoring.db
-      - HOST=0.0.0.0
-      - PORT=8000
-      - LOCAL_MODE=False
-      - DOCKER_CONTAINER=true
     env_file:
       - .env
     volumes:
       - ./data:/app/data
       - ./logs:/app/logs
     restart: unless-stopped
-    healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 40s
 
-  # Optional: Nginx reverse proxy
   nginx:
     image: nginx:alpine
     container_name: media-monitoring-nginx
@@ -34,12 +17,14 @@ services:
       - "443:443"
     volumes:
       - ./deployment/nginx.conf:/etc/nginx/nginx.conf:ro
-      - ./deployment/ssl:/etc/nginx/ssl:ro
-      - ./static:/usr/share/nginx/html:ro
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
     depends_on:
       - media-monitoring-agent
     restart: unless-stopped
-
-volumes:
-  data:
-  logs:
+  
+  certbot:
+    image: certbot/certbot
+    volumes:
+      - ./certbot/conf:/etc/letsencrypt
+      - ./certbot/www:/var/www/certbot
