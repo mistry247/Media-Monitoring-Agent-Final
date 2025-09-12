@@ -1069,7 +1069,7 @@ class MediaMonitoringApp {
             const content = el.querySelector('textarea').value;
             console.log(`🔍 handleProcessManualArticles: Processing article ID ${id}, content length: ${content ? content.length : 0}`);
             return { id, content };
-        }).filter(article => article.content && article.content.trim() !== ''); // Only include articles with content
+        }).filter(article => !isNaN(article.id) && article.content && article.content.trim() !== ''); // Only include articles with valid ID and content
         // CORRECTED LOGIC ENDS HERE
 
         console.log('🔍 handleProcessManualArticles: Articles after filtering for content:', articlesPayload.length);
