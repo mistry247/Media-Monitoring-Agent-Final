@@ -318,7 +318,9 @@ async def update_manual_articles_content(db: Session, articles: List[ManualArtic
         new_content = article_map.get(db_article.id)
         if new_content:
             db_article.article_content = new_content
-            db_article.has_content = True
+            # Only set has_content if the column exists
+            if hasattr(db_article, 'has_content'):
+                db_article.has_content = True
             updated_ids.append(db_article.id)
             logger.info(f"Prepared update for manual article ID: {db_article.id}")
 

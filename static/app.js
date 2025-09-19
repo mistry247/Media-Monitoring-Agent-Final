@@ -1098,6 +1098,7 @@ class MediaMonitoringApp {
                 headers['X-CSRF-Token'] = this.csrfToken;
             }
 
+            console.log('🔍 handleProcessManualArticles: Making fetch request...');
             const response = await fetch('/api/manual-articles/process-batch', {
                 method: 'POST',
                 headers: headers,
@@ -1107,13 +1108,29 @@ class MediaMonitoringApp {
                 }),
             });
 
+            console.log('🔍 handleProcessManualArticles: Response received:', {
+                status: response.status,
+                statusText: response.statusText,
+                headers: Object.fromEntries(response.headers.entries())
+            });
+
             if (response.ok) {
                 const result = await response.json();
+                console.log('🔍 handleProcessManualArticles: Success response:', result);
                 this.showFeedback(feedbackEl, `Successfully started processing. Job ID: ${result.job_id}`, 'success');
                 await this.refreshManualArticles(); // Refresh the list
             } else {
-                const errorData = await response.json();
-                this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorData.detail || 'Unknown error'}`, 'error');
+                console.log('🔍 handleProcessManualArticles: Error response received');
+                let errorMessage = 'Unknown error';
+                try {
+                    const errorData = await response.json();
+                    console.log('🔍 handleProcessManualArticles: Error data:', errorData);
+                    errorMessage = errorData.detail || errorData.message || 'Unknown error';
+                } catch (e) {
+                    console.log('🔍 handleProcessManualArticles: Could not parse error response:', e);
+                    errorMessage = `Server returned ${response.status}: ${response.statusText}`;
+                }
+                this.showFeedback(feedbackEl, `Failed to process articles. Server said: ${errorMessage}`, 'error');
             }
         } catch (error) {
             console.error('Error processing manual articles:', error);
