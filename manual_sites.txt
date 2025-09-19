@@ -22,6 +22,7 @@ bostonglobe.com
 seattletimes.com
 
 # UK newspapers with paywalls
+thetimes.com
 thetimes.co.uk
 telegraph.co.uk
 spectator.co.uk
