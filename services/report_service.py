@@ -409,16 +409,17 @@ class ReportService:
             for article in articles:
                 logger.info(f"[{job_id}] Generating summary for article ID {article.id}...")
                 
-                summary_success, summary_content, _ = ai_service.summarize_article(
-                    title=f"Manual Input: {article.url}",
+                # Use summarize_content directly to get clean summary text
+                summary_result = ai_service.summarize_content(
                     content=article.article_content,
-                    url=article.url
+                    summary_type="media",
+                    article_url=article.url
                 )
 
-                if summary_success:
+                if summary_result.success:
                     summaries.append({
                         'title': f"Summary for: {article.url}",
-                        'summary': summary_content,
+                        'summary': summary_result.content,
                         'url': article.url,
                         'submitted_by': article.submitted_by
                     })
