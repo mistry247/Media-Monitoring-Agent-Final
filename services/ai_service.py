@@ -151,6 +151,10 @@ class GeminiAPIClient:
             
             # Combine system message and user prompt
             full_prompt = f"{system_message}\n\n{user_prompt}"
+            
+            # DEBUG: Log the prompt being sent to AI
+            logger.info(f"DEBUG: Sending prompt to AI (first 500 chars): {full_prompt[:500]}...")
+            
             response = self._make_request(full_prompt)
             
             # Extract content from response
