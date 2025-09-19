@@ -55,10 +55,6 @@ YOUR ASSIGNMENT
 
 Now, process the following inputs based on all the rules and examples above. Respond with only the single, complete <p>...</p> HTML block.
 
-Article URL: {{ $json.URL }}
-
-Article Text: {{ $json.newsText }}
-
 SPECIAL RULE: If the article URL is from any BBC domain (bbc.com, bbc.co.uk, or their subdomains), always use 'BBC News' as the source name in the hyperlink, regardless of what the URL or article text says.
 
 IMPORTANT: In your output, always use the actual Article URL provided in the input for the hyperlink. Never use a placeholder, example, or the literal text '[Article URL]'.
