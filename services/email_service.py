@@ -185,6 +185,10 @@ class EmailService:
                 source_url = summary.get('url', '')
                 submitted_by = summary.get('submitted_by', 'Unknown')
                 
+                # Ensure content is a string
+                if isinstance(content, dict):
+                    content = str(content)
+                
                 # Check if content is already HTML formatted (contains <p> tags)
                 if content.strip().startswith('<p>') and content.strip().endswith('</p>'):
                     # Content is already HTML formatted, use it directly
