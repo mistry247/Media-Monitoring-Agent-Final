@@ -188,7 +188,6 @@ class GeminiAPIClient:
         """Create a prompt for media article summarization using configuration"""
         template = PROMPT_TEMPLATES["article_summary"]
         return template["user_template"].format(
-            title="Article Analysis",
             url=article_url,
             content=content
         )
@@ -220,12 +219,11 @@ class AIService:
         Returns:
             Tuple of (success: bool, summary_dict: dict, error: str)
         """
-        full_content = f"Title: {title}\n\nContent: {content}"
-        result = self.summarize_content(full_content, "media", url)
+        result = self.summarize_content(content, "media", url)
         
         if result.success:
             summary_dict = {
-                "summary": result.content,
+                "summary": result.content,  # This will now be the HTML-formatted summary
                 "key_points": [
                     "Technology and AI developments",
                     "Industry impact analysis", 

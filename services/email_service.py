@@ -185,10 +185,18 @@ class EmailService:
                 source_url = summary.get('url', '')
                 submitted_by = summary.get('submitted_by', 'Unknown')
                 
+                # Check if content is already HTML formatted (contains <p> tags)
+                if content.strip().startswith('<p>') and content.strip().endswith('</p>'):
+                    # Content is already HTML formatted, use it directly
+                    formatted_content = content
+                else:
+                    # Content is plain text, wrap it in a paragraph
+                    formatted_content = f"<p>{content}</p>"
+                
                 html_template += f"""
             <div class="summary-section">
                 <div class="summary-title">{title}</div>
-                <div class="summary-content">{content}</div>
+                <div class="summary-content">{formatted_content}</div>
                 <div class="source-info">
                     <strong>Submitted by:</strong> {submitted_by}<br>
 """
